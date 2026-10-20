@@ -1,7 +1,7 @@
 """Exact re-pricing of a fixed window cohort over a grid of oracle prices.
 
-The sweep keeps every resource count, gate price, classical price and the
-repetition factor fixed and varies only the coherent record-lookup price
+The repricing keeps every resource count, gate price, classical price and
+the repetition factor fixed and varies only the coherent record-lookup price
 ``L`` and the coherent geometry price ``g_q``. For every tree of every
 non-empty window it re-prices the per-tree endpoint in closed form,
 
@@ -14,25 +14,27 @@ non-empty window it re-prices the per-tree endpoint in closed form,
 where ``P0`` is the classical prefix of the ``QRQ_FW`` route, ``b`` the rank
 register width, ``C`` the cheapest classical route at the reference prices
 and ``n_L`` the coherent lookups shared by the four classical routes (two
-in the published workload; the classical arg-min is therefore unchanged).
-Both tree minima are then reselected at every price point with the
-envelope tie rule (first minimal tree in tree order), ``D' = log2(Q'/C')``,
-and adjacent pairs are re-classified.
+for the routes of :mod:`qrq.routes`; the classical arg-min is therefore
+unchanged). Both tree minima are then reselected at every price point with
+the envelope tie rule (first minimal tree in tree order),
+``D' = log2(Q'/C')``, and adjacent pairs are re-classified.
 
-The expressions are evaluated in the same order as the sealed sweep, so a
-cohort built from the sealed ledgers reproduces the published price tables
-bit for bit. The closed form equals the route cost of
-:func:`qrq.prices.route_cost` up to floating-point rounding; at the
-reference prices the two agree within ``1e-12`` relative error.
+The expressions are evaluated in a fixed order (that of the reference
+implementation), so repricing is bit-reproducible. The closed form equals
+the route cost of :func:`qrq.prices.route_cost` up to floating-point
+rounding; at the reference prices the two agree within ``1e-12`` relative
+error.
 
-Typical use with the sealed ledgers::
+Typical use with ledgers audited by :func:`qrq.ledger.audit_cohort`::
 
-    from qrq.ledger import reproduce
     from qrq import sweep
 
-    cohort = sweep.cohort_from_reproduction(reproduce(root), group_of=groups)
-    tables = sweep.sweep(cohort, sweep.price_grid())
-    tables.grid[0]["lower_windows"]       # 742 at the L1 point
+    cohort = sweep.cohort_from_ledger(ledger_cohort, group_of=groups)
+    grid = sweep.price_grid(lookups=(100, 10, 1), geometries=(10000, 100, 1))
+    tables = sweep.sweep(cohort, grid, reference=qrq.L1)
+
+Summaries are pooled, per source and per caller-supplied group label;
+named window subsets (for example short windows) are supplied by the caller.
 """
 from __future__ import annotations
 
@@ -45,38 +47,21 @@ import numpy as np
 from .index import TREE_KINDS
 from .prices import L1, PriceTable
 
-LOOKUP_PRICES: tuple[int, ...] = (100, 30, 10, 3, 1)
-"""Coherent lookup prices of the published grid."""
-
-GEOMETRY_PRICES: tuple[int, ...] = (10000, 3000, 1000, 300, 100, 30, 10, 3, 1)
-"""Coherent geometry prices of the published grid."""
-
-REPORT_POINTS: tuple[tuple[int, int], ...] = ((100, 10000), (10, 1000), (1, 100), (1, 1))
-"""``(lookup, g_quantum)`` points reported in the text."""
-
-FINE_DURATION_S = 900
-"""Duration of the 15 min windows."""
-
-FINE_WIDTH_M = 1000
-"""Largest width of the ``<= 1 km`` windows."""
-
-LARGE_ANSWER = 20000
-"""Smallest answer size of the large-answer subset."""
-
 QUANTILES: tuple[tuple[str, float], ...] = (("q25", 0.25), ("median", 0.5), ("q75", 0.75))
 
 Row = dict[str, Any]
+Subsets = Sequence[tuple[str, np.ndarray]]
+"""Named boolean window masks, for example ``[("short", cohort.duration_s <= 900)]``."""
 
 
 def price_grid(
-    lookups: Sequence[float] = LOOKUP_PRICES,
-    geometries: Sequence[float] = GEOMETRY_PRICES,
+    lookups: Sequence[float],
+    geometries: Sequence[float],
     base: PriceTable = L1,
 ) -> list[PriceTable]:
-    """Price tables of the grid, lookup price outer and geometry price inner.
+    """Price tables of a grid, lookup price outer and geometry price inner.
 
-    All other prices are taken from ``base``. The defaults give the 45
-    published points in published order.
+    All other prices are taken from ``base``.
     """
     return [dataclasses.replace(base, lookup=l, g_quantum=g) for l in lookups for g in geometries]
 
@@ -194,14 +179,14 @@ def cohort_from_endpoints(
     )
 
 
-def cohort_from_reproduction(reproduction: Any, group_of: Mapping[str, str] | None = None) -> SweepCohort:
-    """Cohort of a :class:`qrq.ledger.Reproduction`, priced at its audit prices."""
-    return cohort_from_endpoints(reproduction.windows, reproduction.pairs, group_of, reproduction.prices)
+def cohort_from_ledger(ledger_cohort: Any, group_of: Mapping[str, str] | None = None) -> SweepCohort:
+    """Cohort of a :class:`qrq.ledger.LedgerCohort`, priced at its audit prices."""
+    return cohort_from_endpoints(ledger_cohort.windows, ledger_cohort.pairs, group_of, ledger_cohort.prices)
 
 
 def _check_prices(prices: PriceTable, reference: PriceTable) -> None:
     if prices.lam != 1 or prices.repeats != 1:
-        raise ValueError("the closed-form sweep is defined for lam == repeats == 1 only")
+        raise ValueError("the closed-form repricing is defined for lam == repeats == 1 only")
     if prices.g_classical != reference.g_classical:
         raise ValueError("the classical geometry price must equal the reference price")
 
@@ -279,21 +264,14 @@ def _quantile(values: np.ndarray, q: float) -> float | None:
     return float(np.quantile(values, q)) if len(values) else None
 
 
-def window_subsets(cohort: SweepCohort) -> list[tuple[str, np.ndarray]]:
-    """Named window subsets: 15 min, width <= 1 km and ``K >= 20000``."""
-    return [
-        ("15min", cohort.duration_s == FINE_DURATION_S),
-        ("width_le_1km", cohort.width_m <= FINE_WIDTH_M),
-        ("K_ge_20000", cohort.k >= LARGE_ANSWER),
-    ]
-
-
-def window_summary(cohort: SweepCohort, point: PricePoint, mask: np.ndarray) -> Row:
+def window_summary(cohort: SweepCohort, point: PricePoint, mask: np.ndarray, subsets: Subsets = ()) -> Row:
     """Window readouts of one price point over the windows in ``mask``.
 
-    Counts of eligible and ``Q < C`` windows, median ``Q/C`` overall and per
-    subset (:func:`window_subsets`), and quartiles of the structure share,
-    prefix share, ``M/K``, ``G/K`` and ``C/K`` on the selected trees.
+    Counts of eligible and ``Q < C`` windows and the median ``Q/C``, the same
+    three readouts for every named subset (keys ``<label>_windows``,
+    ``<label>_lower``, ``<label>_ratio_median``), and quartiles of the
+    structure share, prefix share, ``M/K``, ``G/K`` and ``C/K`` on the
+    selected trees. Linear quantiles; ``None`` for an empty selection.
     """
     ratio = point.Q / point.C
     lower = point.lower
@@ -304,7 +282,9 @@ def window_summary(cohort: SweepCohort, point: PricePoint, mask: np.ndarray) -> 
         "lower_windows": int((lower & mask).sum()),
         "q_over_c_median": _quantile(ratio[mask], 0.5),
     }
-    for label, subset in window_subsets(cohort):
+    for label, subset in subsets:
+        if subset.shape != mask.shape:
+            raise ValueError(f"subset {label!r} must have one entry per window")
         selected = mask & subset
         out[f"{label}_windows"] = int(selected.sum())
         out[f"{label}_lower"] = int((lower & selected).sum())
@@ -322,32 +302,44 @@ def window_summary(cohort: SweepCohort, point: PricePoint, mask: np.ndarray) -> 
     return out
 
 
-def pair_summary(point: PricePoint, reference_forward: np.ndarray, mask: np.ndarray) -> Row:
+def pair_summary(point: PricePoint, mask: np.ndarray, reference_forward: np.ndarray | None = None) -> Row:
     """Pair directions of one price point over the pairs in ``mask``.
 
-    Retained, added and lost forward pairs are relative to
-    ``reference_forward``.
+    With ``reference_forward`` (the forward flags at a reference price point)
+    the forward pairs are also split into retained, added and lost ones.
     """
     fwd, rev = point.forward, point.reverse
-    return {
+    out: Row = {
         "eligible_pairs": int(mask.sum()),
         "forward_pairs": int((fwd & mask).sum()),
         "reverse_pairs": int((rev & mask).sum()),
         "no_cross_pairs": int((~fwd & ~rev & mask).sum()),
-        "forward_retained": int((fwd & reference_forward & mask).sum()),
-        "forward_added": int((fwd & ~reference_forward & mask).sum()),
-        "forward_lost": int((~fwd & reference_forward & mask).sum()),
     }
+    if reference_forward is not None:
+        out.update(
+            forward_retained=int((fwd & reference_forward & mask).sum()),
+            forward_added=int((fwd & ~reference_forward & mask).sum()),
+            forward_lost=int((~fwd & reference_forward & mask).sum()),
+        )
+    return out
 
 
 def _tie_windows(costs: np.ndarray, selected: np.ndarray) -> int:
     return int((np.sum(costs == selected[:, None], axis=1) > 1).sum())
 
 
-def grid_row(cohort: SweepCohort, point: PricePoint, reference_forward: np.ndarray) -> Row:
-    """Pooled readouts of one price point (one row of the price grid table)."""
-    out = window_summary(cohort, point, np.ones(len(cohort.keys), dtype=bool))
-    pairs = pair_summary(point, reference_forward, np.ones(len(cohort.small), dtype=bool))
+def grid_row(
+    cohort: SweepCohort, point: PricePoint, subsets: Subsets = (), reference_forward: np.ndarray | None = None
+) -> Row:
+    """Pooled readouts of one price point: windows, pairs, sources and groups.
+
+    Window readouts follow :func:`window_summary`; then the forward, reverse
+    and eligible pair counts, the numbers of sources and groups with a
+    forward pair, the transitions relative to ``reference_forward`` (when
+    given) and the numbers of windows with tied quantum or classical trees.
+    """
+    out = window_summary(cohort, point, np.ones(len(cohort.keys), dtype=bool), subsets)
+    pairs = pair_summary(point, np.ones(len(cohort.small), dtype=bool), reference_forward)
     fwd = point.forward
     out.update(
         forward_pairs=pairs["forward_pairs"],
@@ -355,9 +347,10 @@ def grid_row(cohort: SweepCohort, point: PricePoint, reference_forward: np.ndarr
         eligible_pairs=pairs["eligible_pairs"],
         sources_with_forward=len(set(cohort.pair_source[fwd])),
         groups_with_forward=len(set(cohort.group[cohort.small[fwd]])),
-        forward_retained=pairs["forward_retained"],
-        forward_added=pairs["forward_added"],
-        forward_lost=pairs["forward_lost"],
+    )
+    if reference_forward is not None:
+        out.update({name: pairs[name] for name in ("forward_retained", "forward_added", "forward_lost")})
+    out.update(
         q_tree_tie_windows=_tie_windows(point.Q_tree, point.Q),
         c_tree_tie_windows=_tie_windows(point.C_tree, point.C),
     )
@@ -366,11 +359,12 @@ def grid_row(cohort: SweepCohort, point: PricePoint, reference_forward: np.ndarr
 
 @dataclass(frozen=True)
 class SweepTables:
-    """Readouts of a sweep, one list of rows per published table.
+    """Readouts of a sweep.
 
     ``grid``: one pooled row per price point. ``by_source``: one row per
-    price point and source. ``pairs``: one row per price point, source
-    (``ALL`` first) and axis (``all`` first).
+    price point and source (with ``source_id``, ``group`` and
+    ``source_days``). ``pairs``: one row per price point, source (``ALL``
+    first) and axis (``all`` first).
     """
 
     grid: list[Row]
@@ -381,16 +375,18 @@ class SweepTables:
 def sweep(
     cohort: SweepCohort,
     grid: Iterable[PriceTable],
+    subsets: Subsets = (),
     reference: PriceTable | None = None,
     on_point: Callable[[PricePoint], None] | None = None,
 ) -> SweepTables:
     """Re-price ``cohort`` at every point of ``grid`` and summarise.
 
-    Retained, added and lost forward pairs are relative to the directions at
-    ``reference`` (default: the cohort's reference prices, ``L1`` for the
-    sealed ledgers). ``on_point`` is called with every :class:`PricePoint`.
+    ``subsets`` are named window masks reported next to the pooled window
+    readouts. With ``reference`` the forward pairs of every point are
+    compared with those at the reference prices (retained, added, lost).
+    ``on_point`` is called with every :class:`PricePoint`.
     """
-    base = reprice(cohort, cohort.reference if reference is None else reference)
+    base = None if reference is None else reprice(cohort, reference).forward
     sources = sorted(set(cohort.source))
     window_source = cohort.source
     pair_source = cohort.pair_source
@@ -401,10 +397,10 @@ def sweep(
         point = reprice(cohort, prices)
         if on_point is not None:
             on_point(point)
-        tables.grid.append(grid_row(cohort, point, base.forward))
+        tables.grid.append(grid_row(cohort, point, subsets, base))
         for source in sources:
             mask = window_source == source
-            row = window_summary(cohort, point, mask)
+            row = window_summary(cohort, point, mask, subsets)
             row.update(source_id=source, group=str(cohort.group[mask][0]), source_days=source_days[source])
             tables.by_source.append(row)
         for source in ["ALL"] + sources:
@@ -413,6 +409,6 @@ def sweep(
                 mask = in_source if axis == "all" else in_source & (cohort.axis == axis)
                 row = {"lookup": prices.lookup, "quantum_geometry": prices.g_quantum,
                        "source_id": source, "axis": axis}
-                row.update(pair_summary(point, base.forward, mask))
+                row.update(pair_summary(point, mask, base))
                 tables.pairs.append(row)
     return tables

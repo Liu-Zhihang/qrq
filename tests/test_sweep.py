@@ -1,4 +1,4 @@
-"""Exact price sweep over per-tree endpoints (synthetic data)."""
+"""Exact repricing of per-tree endpoints over price grids (synthetic data)."""
 from __future__ import annotations
 
 import dataclasses
@@ -14,13 +14,17 @@ from qrq.ledger import audit_cohort, read_ledger
 from synthetic import LEDGER_GRID
 
 
+LOOKUPS = (50, 20, 5, 1)
+GEOMETRIES = (5000, 500, 50, 5, 1)
+"""Synthetic test grid; any lookup and geometry prices work."""
+
+
 def test_price_grid_order():
-    grid = sweep.price_grid()
-    assert len(grid) == 45 and grid[0] == qrq.L1
-    assert [(p.lookup, p.g_quantum) for p in grid[:9]] == [(100, g) for g in sweep.GEOMETRY_PRICES]
-    assert [p.lookup for p in grid[::9]] == list(sweep.LOOKUP_PRICES)
+    grid = sweep.price_grid(LOOKUPS, GEOMETRIES)
+    assert len(grid) == len(LOOKUPS) * len(GEOMETRIES)
+    assert [(p.lookup, p.g_quantum) for p in grid[:5]] == [(50, g) for g in GEOMETRIES]
+    assert [p.lookup for p in grid[::5]] == list(LOOKUPS)
     assert all((p.g_classical, p.lam, p.repeats) == (1, 1, 1) for p in grid)
-    assert set(sweep.REPORT_POINTS) <= {(p.lookup, p.g_quantum) for p in grid}
     assert sweep.price_grid([2], [3, 4], base=qrq.UNIT) == [qrq.PriceTable(1, 2, 3, 1, 1), qrq.PriceTable(1, 2, 4, 1, 1)]
 
 
@@ -73,12 +77,19 @@ def test_reprice_closed_form_by_hand(lookup, geometry):
 
 def test_tiny_sweep_rows():
     cohort = tiny_cohort()
-    tables = sweep.sweep(cohort, [qrq.L1, qrq.UNIT])
+    subsets = [("short", cohort.duration_s == 900), ("narrow", cohort.width_m <= 1000), ("large", cohort.k >= 20000)]
+    tables = sweep.sweep(cohort, [qrq.L1, qrq.UNIT], subsets=subsets)
     assert [r["lookup"] for r in tables.grid] == [100, 1]
     unit = tables.grid[1]
     assert unit["eligible_windows"] == 3 and unit["q_tree_tie_windows"] == 1
-    assert unit["15min_windows"] == 2 and unit["width_le_1km_windows"] == 3 and unit["K_ge_20000_windows"] == 0
-    assert unit["K_ge_20000_ratio_median"] is None and unit["K_ge_20000_lower"] == 0
+    assert unit["short_windows"] == 2 and unit["narrow_windows"] == 3 and unit["large_windows"] == 0
+    assert unit["large_ratio_median"] is None and unit["large_lower"] == 0
+    assert "forward_retained" not in unit and "forward_retained" not in tables.pairs[0]
+    assert list(unit)[5:8] == ["short_windows", "short_lower", "short_ratio_median"]
+    plain = sweep.sweep(cohort, [qrq.UNIT]).grid[0]
+    assert "short_windows" not in plain and plain["lower_windows"] == unit["lower_windows"]
+    with pytest.raises(ValueError):
+        sweep.sweep(cohort, [qrq.UNIT], subsets=[("bad", np.ones(2, dtype=bool))])
     assert [r["source_id"] for r in tables.by_source] == ["s1", "s2"] * 2
     assert [r["source_days"] for r in tables.by_source[:2]] == [1, 1]
     assert [(r["source_id"], r["axis"]) for r in tables.pairs[:3]] == [("ALL", "all"), ("ALL", "space"), ("s1", "all")]
@@ -102,15 +113,15 @@ def test_cohort_validation():
 @pytest.fixture(scope="module")
 def ledger_cohort(synthetic_ledgers):
     r = audit_cohort(synthetic_ledgers, LEDGER_GRID)
-    return r, sweep.cohort_from_reproduction(r)
+    return r, sweep.cohort_from_ledger(r)
 
 
-def test_cohort_from_reproduction(ledger_cohort):
+def test_cohort_from_ledger(ledger_cohort):
     r, cohort = ledger_cohort
     assert len(cohort.keys) == r.window_count and len(cohort.small) == len(r.pairs)
     assert cohort.reference == qrq.L1 and cohort.trees == qrq.TREE_KINDS
     np.testing.assert_array_equal(cohort.group, cohort.source)
-    merged = sweep.cohort_from_reproduction(r, group_of={"alpha": "one", "beta": "one"})
+    merged = sweep.cohort_from_ledger(r, group_of={"alpha": "one", "beta": "one"})
     assert set(merged.group) == {"one"}
     rows = sweep.sweep(merged, [qrq.UNIT]).by_source
     assert {row["group"] for row in rows} == {"one"} and "group" in rows[0]
@@ -143,9 +154,10 @@ def test_closed_form_equals_route_cost(ledger_cohort, synthetic_ledgers):
 
 def test_sweep_row_invariants(ledger_cohort):
     r, cohort = ledger_cohort
-    grid = sweep.price_grid()
+    grid = sweep.price_grid(LOOKUPS, GEOMETRIES, base=qrq.L1)
     seen = []
-    tables = sweep.sweep(cohort, grid, on_point=seen.append)
+    tables = sweep.sweep(cohort, [qrq.L1] + grid, reference=qrq.L1, on_point=seen.append)
+    grid = [qrq.L1] + grid
     unit_ref = sweep.sweep(cohort, grid, reference=qrq.UNIT)
     sources = sorted(set(cohort.source))
     axes = sorted(set(cohort.axis))
