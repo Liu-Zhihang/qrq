@@ -11,8 +11,10 @@ answer size ``k``, the five route resource rows and their stored costs.
 :func:`audit_day` re-prices every stored route from its resource vectors,
 checks the stored costs, and recomputes the per-window envelope with
 :func:`qrq.engine.select_envelope`. :func:`reproduce` aggregates all days
-into the published window and adjacent-pair counts. Run it from the command
-line with ``python -m qrq.ledger --ledgers <root>``.
+into the published window and adjacent-pair counts. Every window keeps its
+per-tree inputs
+(:class:`TreeEndpoint`) for exact re-pricing with :mod:`qrq.sweep`. Run it
+from the command line with ``python -m qrq.ledger --ledgers <root>``.
 
 The ledgers themselves are restricted evidence and are not distributed with
 this package; see ``docs/reproducing.md``.
@@ -24,9 +26,9 @@ import collections
 import gzip
 import json
 import math
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Any, Iterator, Sequence
+from typing import Any, Iterator, Mapping, Sequence
 
 from .engine import select_envelope
 from .index import TREE_KINDS
@@ -76,8 +78,57 @@ def read_ledger(path: str | Path) -> Iterator[dict[str, Any]]:
 
 
 @dataclass(frozen=True)
+class TreeEndpoint:
+    """Per-tree inputs of one non-empty window for exact re-pricing.
+
+    ``P0`` is the classical prefix of the ``QRQ_FW`` route (frontier
+    discovery plus preparation metadata), ``Q`` its cost and ``C`` the
+    cheapest classical route on this tree, both at the audit prices.
+    ``classical_lookups`` is the coherent lookup count shared by the four
+    classical routes, which then keep their order under any lookup price;
+    it is ``nan`` when the routes differ in lookups or use coherent
+    geometry.
+    """
+
+    tree: str
+    M: int
+    G: int
+    bits: int
+    P0: float
+    Q: float
+    C: float
+    classical_lookups: float
+
+
+def _tree_endpoint(
+    tree: str, row: Mapping[str, Any], costs: Mapping[str, float], prices: PriceTable
+) -> TreeEndpoint:
+    q_route = next(r for r in row["routes"] if r["route"] == QRQ_FW)
+    classical = [r for r in row["routes"] if r["route"] != QRQ_FW]
+    c = q_route["classical"]
+    lookups = {r["quantum"]["lookup_calls"] for r in classical}
+    coherent_geometry = {r["quantum"]["geometry_calls"] for r in classical}
+    shared = float(lookups.pop()) if len(lookups) == 1 and coherent_geometry == {0} else math.nan
+    return TreeEndpoint(
+        tree=tree,
+        M=int(q_route["domain"]),
+        G=int(q_route["preparation"]["gate_total"]),
+        bits=int(q_route["shared_initial_rank_bits"]),
+        P0=float(c["nodes"] + c["slots"] + prices.g_classical * c["geometry"] + c["metadata"]),
+        Q=costs[QRQ_FW],
+        C=min(value for name, value in costs.items() if name != QRQ_FW),
+        classical_lookups=shared,
+    )
+
+
+@dataclass(frozen=True)
 class LedgerEndpoint:
-    """Envelope of one non-empty window recomputed from ledger rows."""
+    """Envelope of one non-empty window recomputed from ledger rows.
+
+    ``M``, ``trials``, ``G``, ``prefix`` and ``trial_cost`` describe the
+    ``QRQ_FW`` route on ``quantum_tree``; ``trees`` holds the per-tree
+    inputs in ledger tree order.
+    """
 
     source_id: str
     date: str
@@ -101,6 +152,7 @@ class LedgerEndpoint:
     G: int
     prefix: float
     trial_cost: float
+    trees: tuple[TreeEndpoint, ...] = field(default=(), repr=False)
 
     @property
     def quantum_lower(self) -> bool:
@@ -197,6 +249,7 @@ def audit_day(day: LedgerDay, prices: PriceTable = L1, rel_tol: float = 1e-12) -
                 G=q_route["preparation"]["gate_total"],
                 prefix=parts.prefix,
                 trial_cost=parts.trial_cost,
+                trees=tuple(_tree_endpoint(tree, row, costs, prices) for tree, row, costs in entries),
             )
         )
     return audit
@@ -218,7 +271,10 @@ class PairRecord:
 
 @dataclass
 class Reproduction:
-    """Aggregate of :func:`reproduce` over all source-days."""
+    """Aggregate of :func:`reproduce` over all source-days.
+
+    ``prices`` are the audit prices of every stored and recomputed cost.
+    """
 
     days: int = 0
     ledgers: int = 0
@@ -228,6 +284,7 @@ class Reproduction:
     max_relative_error: float = 0.0
     windows: list[LedgerEndpoint] = field(default_factory=list)
     pairs: list[PairRecord] = field(default_factory=list)
+    prices: PriceTable = L1
 
     @property
     def window_count(self) -> int:
@@ -283,7 +340,7 @@ def reproduce(
     ``arm`` and ``variant``; pairs are adjacent-scale pairs among them
     within each source-day.
     """
-    result = Reproduction()
+    result = Reproduction(prices=prices)
     for day in find_ledger_days(root):
         audit = audit_day(day, prices, rel_tol)
         result.days += 1
@@ -326,7 +383,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         import csv
 
         with open(args.windows_csv, "w", newline="", encoding="utf-8") as handle:
-            rows = [asdict(w) for w in result.windows]
+            columns = [f.name for f in fields(LedgerEndpoint) if f.name != "trees"]
+            rows = [{name: getattr(w, name) for name in columns} for w in result.windows]
             writer = csv.DictWriter(handle, fieldnames=list(rows[0]) if rows else ["query_id"])
             writer.writeheader()
             writer.writerows(rows)

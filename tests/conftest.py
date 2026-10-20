@@ -1,4 +1,4 @@
-"""Shared fixtures: seeded synthetic point clouds and sealed-evidence paths.
+"""Shared fixtures: seeded synthetic data and sealed-evidence paths.
 
 Sealed evidence is never part of the repository. Its location is passed at
 test time through environment variables:
@@ -15,7 +15,7 @@ import pytest
 import qrq
 
 from evidence import env_dir
-from synthetic import synthetic_cloud
+from synthetic import synthetic_cloud, write_synthetic_ledgers
 
 
 CLOUDS = [
@@ -38,6 +38,12 @@ def indexed_cloud() -> tuple[np.ndarray, dict[str, qrq.SpatioTemporalIndex]]:
     points = synthetic_cloud("clustered", 4000, seed=20260001)
     indexes = {kind: qrq.SpatioTemporalIndex.build(points, kind=kind) for kind in qrq.TREE_KINDS}
     return points, indexes
+
+
+@pytest.fixture(scope="session")
+def synthetic_ledgers(tmp_path_factory):
+    """Synthetic per-tree ledgers in the sealed directory layout."""
+    return write_synthetic_ledgers(tmp_path_factory.mktemp("ledgers"))
 
 
 @pytest.fixture(scope="session")
