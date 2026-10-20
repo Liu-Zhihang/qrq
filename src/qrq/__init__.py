@@ -28,7 +28,7 @@ from .records import POINT, backend_arrays, load_points, make_points, save_point
 from .routes import CLASSICAL_ROUTES, QRQ_FW, ROUTES, AccessRoute, evaluate_routes
 from .workload import Window, adjacent_pairs, classify_pair, register_windows
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "AccessPlan",

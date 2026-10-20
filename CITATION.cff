@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "qrq: quantum range queries over space-time point records"
 type: software
-version: 0.1.0
+version: 0.2.0
 date-released: 2026-10-20
 license: MIT
 authors:
@@ -16,3 +16,5 @@ keywords:
   - quantum algorithms
   - resource estimation
   - mobility data
+  - semantic query
+  - points of interest
