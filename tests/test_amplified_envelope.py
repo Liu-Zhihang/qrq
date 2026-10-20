@@ -8,10 +8,10 @@ import pytest
 import qrq
 from qrq.amplitude import QRQ_AA, amplified_cost, amplified_cost_from_route
 from qrq.engine import Envelope, include_amplified, select_envelope
-from qrq.ledger import reproduce
+from qrq.ledger import audit_cohort
 from qrq.workload import classify_pair
 
-from synthetic import random_boxes
+from synthetic import LEDGER_GRID, random_boxes
 
 
 def first_witness_envelope() -> Envelope:
@@ -77,9 +77,9 @@ def test_evaluate_window_amplified_requires_unit_weights(indexed_cloud):
         qrq.evaluate_window(indexes, box, qrq.PriceTable(1, 100, 10000, 2, 1), amplified=True)
 
 
-def test_ledger_reproduction_with_amplification(synthetic_ledgers):
-    plain = reproduce(synthetic_ledgers)
-    joint = reproduce(synthetic_ledgers, amplified=True)
+def test_ledger_audit_with_amplification(synthetic_ledgers):
+    plain = audit_cohort(synthetic_ledgers, LEDGER_GRID)
+    joint = audit_cohort(synthetic_ledgers, LEDGER_GRID, amplified=True)
     assert (plain.amplified, joint.amplified) == (False, True)
     assert [w.query_id for w in plain.windows] == [w.query_id for w in joint.windows]
     for a, b in zip(plain.windows, joint.windows):

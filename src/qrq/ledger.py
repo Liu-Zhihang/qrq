@@ -1,76 +1,91 @@
-"""Sealed per-tree resource ledgers: re-pricing and envelope reproduction.
+"""Per-tree route ledgers: row schema, writer, reader and re-pricing audit.
 
-A sealed evidence directory has the layout::
+A ledger is a gzip JSON-lines file holding one row per registered window for
+one tree kind; a :class:`LedgerDay` groups the ledgers of all tree kinds that
+cover the same records (for example one source on one day). Row schema:
 
-    <root>/<host>/outputs/<source_id>/<date>/<tree>.jsonl.gz
+``query_id``
+    window identifier, unique within the ledger.
+``result_status``
+    ``eligible_nonempty`` or ``eligible_empty`` for costed windows; any other
+    value (for example ``unsupported_index_span``) marks an uncosted window.
+``anchor_index``, ``width_m``, ``duration_s``, ``temporal_center_s``
+    window metadata, required for envelopes and adjacent-scale pairs.
+``n``, ``k``, ``routes``, ``costs``
+    for costed windows: indexed records, exact answer size, the five route
+    resource rows of :func:`qrq.routes.evaluate_routes` and their costs
+    ``{route: cost}`` at the ledger prices.
+``source_id``, ``date``, ``arm``, ``variant``, ``tree``
+    optional labels.
 
-with one gzip JSON-lines ledger per source-day and tree kind. Each line holds
-the window metadata, its ``result_status`` and, for costed windows, the
-answer size ``k``, the five route resource rows and their stored costs.
-
+:func:`ledger_row` and :func:`write_ledger` produce ledgers in this schema.
 :func:`audit_day` re-prices every stored route from its resource vectors,
-checks the stored costs, and recomputes the per-window envelope with
-:func:`qrq.engine.select_envelope`. :func:`reproduce` aggregates all days
-into the published window and adjacent-pair counts. With ``amplified=True``
-the envelopes also admit amplitude amplification on the selected quantum
-tree (:func:`qrq.engine.include_amplified`), which reproduces the published
-sensitivity analysis. Every window keeps its per-tree inputs
-(:class:`TreeEndpoint`) for exact re-pricing with :mod:`qrq.sweep`. Run it
-from the command line with ``python -m qrq.ledger --ledgers <root>``.
-
-The ledgers themselves are restricted evidence and are not distributed with
-this package; see ``docs/reference_study/reproduction.md``.
+checks the stored costs, and recomputes the envelope of every non-empty
+window with :func:`qrq.engine.select_envelope` (optionally admitting
+amplitude amplification, :func:`qrq.engine.include_amplified`). Every window
+keeps its per-tree inputs (:class:`TreeEndpoint`) for exact re-pricing with
+:mod:`qrq.sweep`. :func:`audit_cohort` aggregates many ledger days and forms
+the adjacent-scale pairs of each day on a caller-supplied window grid.
 """
 from __future__ import annotations
 
-import argparse
 import collections
 import gzip
 import json
 import math
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterator, Mapping, Sequence
+from typing import Any, Collection, Iterable, Iterator, Mapping, Sequence
 
 from .amplitude import amplified_cost_from_route
 from .engine import include_amplified, select_envelope
-from .index import TREE_KINDS
-from .prices import L1, PriceTable, decompose_quantum_cost, route_cost
-from .routes import QRQ_FW
-from .workload import adjacent_pairs, classify_pair
+from .index import SpatioTemporalIndex
+from .prices import L1, PriceTable, decompose_quantum_cost, route_cost, route_costs
+from .routes import QRQ_FW, evaluate_routes
+from .workload import UNSUPPORTED_INDEX_SPAN, Window, WindowGrid, adjacent_pairs, classify_pair
 
 ELIGIBLE_NONEMPTY = "eligible_nonempty"
-ENDPOINT_ARMS = ("baseline", "perturb")
+ELIGIBLE_EMPTY = "eligible_empty"
+WINDOW_FIELDS = ("anchor_index", "width_m", "duration_s", "temporal_center_s")
 
 
-@dataclass(frozen=True)
-class LedgerDay:
-    """The three per-tree ledgers of one source-day."""
+def ledger_row(
+    window: Window, index: SpatioTemporalIndex, prices: PriceTable = L1, **labels: Any
+) -> dict[str, Any]:
+    """Ledger row of one registered window on one index.
 
-    host: str
-    source_id: str
-    date: str
-    paths: dict[str, Path]
+    Unsupported windows are recorded without routes; every other window is
+    costed with :func:`qrq.routes.evaluate_routes` and priced at ``prices``.
+    ``labels`` (for example ``source_id``, ``date``, ``arm``) are copied
+    into the row.
+    """
+    row: dict[str, Any] = dict(
+        query_id=window.query_id,
+        anchor_index=list(window.anchor_index),
+        width_m=window.width_m,
+        duration_s=window.duration_s,
+        temporal_center_s=window.temporal_center_s,
+        n=index.size,
+        tree=index.kind,
+        **labels,
+    )
+    if not window.supported:
+        row["result_status"] = UNSUPPORTED_INDEX_SPAN
+        return row
+    k, rows = evaluate_routes(index.plan(window.box), index.size)
+    row.update(result_status=ELIGIBLE_NONEMPTY if k else ELIGIBLE_EMPTY, k=k, routes=rows,
+               costs=route_costs(rows, prices))
+    return row
 
 
-def find_ledger_days(root: str | Path, trees: Sequence[str] = TREE_KINDS) -> list[LedgerDay]:
-    """Locate every complete source-day under an evidence root."""
-    root = Path(root)
-    found: dict[tuple[str, str, str], dict[str, Path]] = collections.defaultdict(dict)
-    for path in sorted(root.glob("*/outputs/*/*/*.jsonl.gz")):
-        tree = path.name[: -len(".jsonl.gz")]
-        if tree not in trees:
-            continue
-        date_dir = path.parent
-        host = date_dir.parent.parent.parent.name
-        found[(host, date_dir.parent.name, date_dir.name)][tree] = path
-    days = []
-    for (host, source, date), paths in sorted(found.items()):
-        missing = [t for t in trees if t not in paths]
-        if missing:
-            raise ValueError(f"{source} {date}: missing ledgers for {missing}")
-        days.append(LedgerDay(host, source, date, {t: paths[t] for t in trees}))
-    return days
+def write_ledger(path: str | Path, rows: Iterable[Mapping[str, Any]]) -> Path:
+    """Write ledger rows as gzip JSON lines."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with gzip.open(path, "wt", encoding="utf-8") as stream:
+        for row in rows:
+            stream.write(json.dumps(row) + "\n")
+    return path
 
 
 def read_ledger(path: str | Path) -> Iterator[dict[str, Any]]:
@@ -78,6 +93,19 @@ def read_ledger(path: str | Path) -> Iterator[dict[str, Any]]:
     with gzip.open(path, "rt", encoding="utf-8") as stream:
         for line in stream:
             yield json.loads(line)
+
+
+@dataclass(frozen=True)
+class LedgerDay:
+    """The per-tree ledgers of one group of windows (for example a source-day).
+
+    ``paths`` maps tree kind to ledger file; its order is the envelope
+    tie-break order.
+    """
+
+    source_id: str
+    date: str
+    paths: Mapping[str, Path]
 
 
 @dataclass(frozen=True)
@@ -131,7 +159,8 @@ class LedgerEndpoint:
     ``M``, ``trials``, ``G``, ``prefix`` and ``trial_cost`` describe the
     ``QRQ_FW`` route on ``quantum_tree``. ``quantum_route``,
     ``filter_cost`` and ``amplified_cost`` follow :class:`qrq.engine.Envelope`;
-    ``trees`` holds the per-tree inputs in ledger tree order.
+    ``trees`` holds the per-tree inputs in ledger tree order. ``arm`` and
+    ``variant`` are the optional row labels (empty when absent).
     """
 
     source_id: str
@@ -168,7 +197,7 @@ class LedgerEndpoint:
 
 @dataclass
 class DayAudit:
-    """Result of re-pricing and re-enveloping one source-day."""
+    """Result of re-pricing and re-enveloping one ledger day."""
 
     day: LedgerDay
     rows: int = 0
@@ -186,15 +215,21 @@ def _relative_error(a: float, b: float) -> float:
 
 
 def audit_day(
-    day: LedgerDay, prices: PriceTable = L1, rel_tol: float = 1e-12, amplified: bool = False
+    day: LedgerDay,
+    prices: PriceTable = L1,
+    rel_tol: float = 1e-12,
+    amplified: bool = False,
+    arms: Collection[str] | None = None,
 ) -> DayAudit:
-    """Re-price every route of one source-day and recompute its envelopes.
+    """Re-price every route of one ledger day and recompute its envelopes.
 
-    Raises :class:`AssertionError` when a stored cost differs from the
-    recomputed one beyond ``rel_tol``, when trees disagree on ``k`` or on the
-    window status, or when the quantum cost does not decompose as
-    ``P + (M/K) H``. With ``amplified=True`` each envelope also admits
-    amplitude amplification on its selected quantum tree.
+    Envelopes are built for every ``eligible_nonempty`` window that carries
+    the window metadata and, when ``arms`` is given, whose ``arm`` label is
+    one of them. With ``amplified=True`` each envelope also admits amplitude
+    amplification on its selected quantum tree. Raises
+    :class:`AssertionError` when a stored cost differs from the recomputed
+    one beyond ``rel_tol``, when trees disagree on ``k`` or on the window
+    status, or when the quantum cost does not decompose as ``P + (M/K) H``.
     """
     audit = DayAudit(day)
     by_query: dict[str, list[tuple[str, dict[str, Any], dict[str, float]]]] = {}
@@ -227,7 +262,9 @@ def audit_day(
         audit.statuses[(first.get("arm"), first["result_status"])] += 1
         if "routes" in first and len({row["k"] for _, row, _ in entries}) != 1:
             raise AssertionError(f"{query_id}: trees disagree on k")
-        if first.get("arm") not in ENDPOINT_ARMS or first["result_status"] != ELIGIBLE_NONEMPTY:
+        if first["result_status"] != ELIGIBLE_NONEMPTY or not all(f in first for f in WINDOW_FIELDS):
+            continue
+        if arms is not None and first.get("arm") not in arms:
             continue
         env = select_envelope((tree, costs) for tree, _, costs in entries)
         q_row = next(row for tree, row, _ in entries if tree == env.quantum_tree)
@@ -242,8 +279,8 @@ def audit_day(
                 source_id=day.source_id,
                 date=day.date,
                 query_id=query_id,
-                arm=first["arm"],
-                variant=first["variant"],
+                arm=first.get("arm", ""),
+                variant=first.get("variant", ""),
                 anchor_index=tuple(first["anchor_index"]),  # type: ignore[arg-type]
                 width_m=first["width_m"],
                 duration_s=first["duration_s"],
@@ -272,7 +309,7 @@ def audit_day(
 
 @dataclass(frozen=True)
 class PairRecord:
-    """One adjacent-scale pair of baseline envelopes."""
+    """One adjacent-scale pair of envelopes."""
 
     source_id: str
     date: str
@@ -284,9 +321,33 @@ class PairRecord:
     direction: str
 
 
+def pair_endpoints(endpoints: Sequence[LedgerEndpoint], grid: WindowGrid) -> list[PairRecord]:
+    """Adjacent-scale pairs among the envelopes of one ledger day.
+
+    Raises :class:`AssertionError` when a larger window has fewer answers
+    than the nested smaller one.
+    """
+    pairs = []
+    for pair in adjacent_pairs(endpoints, grid):
+        small, large = pair.small, pair.large
+        if large.k < small.k:
+            raise AssertionError("nested windows must not lose answers")
+        pairs.append(PairRecord(
+            source_id=small.source_id,
+            date=small.date,
+            axis=pair.axis,
+            small_query=small.query_id,
+            large_query=large.query_id,
+            small_D=small.D,
+            large_D=large.D,
+            direction=classify_pair(small.D, large.D),
+        ))
+    return pairs
+
+
 @dataclass
-class Reproduction:
-    """Aggregate of :func:`reproduce` over all source-days.
+class LedgerCohort:
+    """Envelopes and pairs of many ledger days (see :func:`audit_cohort`).
 
     ``prices`` are the audit prices of every stored and recomputed cost;
     ``amplified`` tells whether the envelopes admit the ``QRQ_AA`` route.
@@ -344,74 +405,33 @@ class Reproduction:
         )
 
 
-def reproduce(
-    root: str | Path,
+def audit_cohort(
+    days: Iterable[LedgerDay],
+    grid: WindowGrid,
     prices: PriceTable = L1,
-    arm: str = "baseline",
-    variant: str = "base",
     rel_tol: float = 1e-12,
     amplified: bool = False,
-) -> Reproduction:
-    """Re-price all sealed ledgers and rebuild the envelope counts.
+    arms: Collection[str] | None = None,
+    arm: str | None = None,
+    variant: str | None = None,
+) -> LedgerCohort:
+    """Audit every ledger day and collect its envelopes and adjacent pairs.
 
-    Windows are the non-empty, fully supported envelopes of the selected
-    ``arm`` and ``variant``; pairs are adjacent-scale pairs among them
-    within each source-day. ``amplified=True`` gives the AA-inclusive
-    envelope of the published sensitivity analysis.
+    ``arms`` restricts envelope building (see :func:`audit_day`); ``arm`` and
+    ``variant``, when given, select the envelopes that enter the cohort.
+    Pairs are formed within each day on ``grid``.
     """
-    result = Reproduction(prices=prices, amplified=amplified)
-    for day in find_ledger_days(root):
-        audit = audit_day(day, prices, rel_tol, amplified)
+    result = LedgerCohort(prices=prices, amplified=amplified)
+    for day in days:
+        audit = audit_day(day, prices, rel_tol, amplified, arms)
         result.days += 1
         result.ledgers += len(day.paths)
         result.rows += audit.rows
         result.priced_routes += audit.priced_routes
         result.exact_cost_matches += audit.exact_cost_matches
         result.max_relative_error = max(result.max_relative_error, audit.max_relative_error)
-        selected = [e for e in audit.endpoints if e.arm == arm and e.variant == variant]
+        selected = [e for e in audit.endpoints
+                    if (arm is None or e.arm == arm) and (variant is None or e.variant == variant)]
         result.windows.extend(selected)
-        for pair in adjacent_pairs(selected):
-            small, large = pair.small, pair.large
-            if large.k < small.k:
-                raise AssertionError("nested windows must not lose answers")
-            result.pairs.append(
-                PairRecord(
-                    source_id=day.source_id,
-                    date=day.date,
-                    axis=pair.axis,
-                    small_query=small.query_id,
-                    large_query=large.query_id,
-                    small_D=small.D,
-                    large_D=large.D,
-                    direction=classify_pair(small.D, large.D),
-                )
-            )
+        result.pairs.extend(pair_endpoints(selected, grid))
     return result
-
-
-def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="python -m qrq.ledger",
-        description="Re-price sealed ledgers and reproduce the envelope counts.",
-    )
-    parser.add_argument("--ledgers", required=True, help="evidence root directory")
-    parser.add_argument("--windows-csv", help="optional output CSV of recomputed windows")
-    parser.add_argument("--amplified", action="store_true",
-                        help="admit amplitude amplification on the selected quantum tree")
-    args = parser.parse_args(argv)
-    result = reproduce(args.ledgers, amplified=args.amplified)
-    if args.windows_csv:
-        import csv
-
-        with open(args.windows_csv, "w", newline="", encoding="utf-8") as handle:
-            columns = [f.name for f in fields(LedgerEndpoint) if f.name != "trees"]
-            rows = [{name: getattr(w, name) for name in columns} for w in result.windows]
-            writer = csv.DictWriter(handle, fieldnames=list(rows[0]) if rows else ["query_id"])
-            writer.writeheader()
-            writer.writerows(rows)
-    print(json.dumps(result.summary(), indent=2))
-    return 0
-
-
-if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(main())

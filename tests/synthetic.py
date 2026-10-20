@@ -1,14 +1,13 @@
 """Seeded synthetic point clouds, query boxes and ledgers used by the tests."""
 from __future__ import annotations
 
-import gzip
-import json
 from pathlib import Path
 from typing import Sequence
 
 import numpy as np
 
 import qrq
+import qrq.ledger
 
 
 def synthetic_cloud(kind: str, n: int, seed: int) -> np.ndarray:
@@ -68,15 +67,18 @@ def random_boxes(points: np.ndarray, count: int, seed: int) -> list[qrq.SpaceTim
 
 
 LEDGER_CENTRE = (20000.0, 20000.0)
+LEDGER_GRID = qrq.WindowGrid(widths=(300, 700, 1500, 4000, 9000), durations=(1200, 5400, 28800, 86400),
+                             centres=(28800, 50400), anchor_step=6000.0)
+"""Synthetic test grid; any grid works, this one keeps the ledgers small."""
 LEDGER_ANCHORS = ((1, 1), (0, 2))
 LEDGER_DAYS = (("alpha", "2020-01-01", 11), ("alpha", "2020-01-02", 12), ("beta", "2020-01-01", 13))
 
 
 def ledger_cloud(n: int, seed: int) -> np.ndarray:
-    """Hub-and-spoke cloud around :data:`LEDGER_CENTRE` covering every anchor."""
+    """Hub-and-spoke cloud around :data:`LEDGER_CENTRE` covering the used anchors."""
     rng = np.random.default_rng(seed)
     cx, cy = LEDGER_CENTRE
-    step = 20000 / 3
+    step = LEDGER_GRID.anchor_step
     hubs = np.array([[cx, cy], [cx - step, cy + step], [cx + 0.4 * step, cy - 0.3 * step]])
     which = rng.integers(0, len(hubs), n)
     spread = rng.choice([150.0, 600.0, 2500.0], n)
@@ -91,32 +93,22 @@ def write_synthetic_ledgers(
     days: Sequence[tuple[str, str, int]] = LEDGER_DAYS,
     n: int = 2500,
     anchors: Sequence[tuple[int, int]] = LEDGER_ANCHORS,
-) -> Path:
-    """Write per-tree gzip ledgers in the sealed layout for synthetic days.
+) -> list[qrq.ledger.LedgerDay]:
+    """Write per-tree ledgers for synthetic days and return their ledger days.
 
     Each ``(source, date, seed)`` day indexes :func:`ledger_cloud` with the
-    three tree kinds and records the registered baseline windows at
-    ``anchors`` with their five route rows and ``L1`` costs, exactly as
-    :mod:`qrq.ledger` expects them.
+    three tree kinds and records the windows of :data:`LEDGER_GRID` at
+    ``anchors`` with :func:`qrq.ledger.ledger_row` (``L1`` costs).
     """
+    out = []
     for source, date, seed in days:
         points = ledger_cloud(n, seed)
         indexes = {kind: qrq.SpatioTemporalIndex.build(points, kind=kind) for kind in qrq.TREE_KINDS}
-        windows = [w for w in qrq.register_windows(*LEDGER_CENTRE) if w.anchor_index in anchors]
-        out = root / "host" / "outputs" / source / date
-        out.mkdir(parents=True, exist_ok=True)
+        windows = [w for w in qrq.register_windows(*LEDGER_CENTRE, LEDGER_GRID) if w.anchor_index in anchors]
+        paths = {}
         for kind, index in indexes.items():
-            with gzip.open(out / f"{kind}.jsonl.gz", "wt", encoding="utf-8") as stream:
-                for w in windows:
-                    row = dict(query_id=w.query_id, variant="base", arm="baseline",
-                               anchor_index=list(w.anchor_index), width_m=w.width_m,
-                               duration_s=w.duration_s, temporal_center_s=w.temporal_center_s,
-                               source_id=source, date=date, n=index.size, tree=kind)
-                    if not w.supported:
-                        row["result_status"] = qrq.workload.UNSUPPORTED_INDEX_SPAN
-                    else:
-                        k, rows = qrq.evaluate_routes(index.plan(w.box), index.size)
-                        row.update(result_status="eligible_nonempty" if k else "eligible_empty", k=k,
-                                   routes=rows, costs=qrq.route_costs(rows, qrq.L1))
-                    stream.write(json.dumps(row) + "\n")
-    return root
+            rows = (qrq.ledger.ledger_row(w, index, qrq.L1, source_id=source, date=date,
+                                          arm="baseline", variant="base") for w in windows)
+            paths[kind] = qrq.ledger.write_ledger(root / source / date / f"{kind}.jsonl.gz", rows)
+        out.append(qrq.ledger.LedgerDay(source, date, paths))
+    return out

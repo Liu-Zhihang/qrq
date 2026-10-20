@@ -9,7 +9,9 @@ import pytest
 
 import qrq
 from qrq import sweep
-from qrq.ledger import find_ledger_days, read_ledger, reproduce
+from qrq.ledger import audit_cohort, read_ledger
+
+from synthetic import LEDGER_GRID
 
 
 def test_price_grid_order():
@@ -99,7 +101,7 @@ def test_cohort_validation():
 
 @pytest.fixture(scope="module")
 def ledger_cohort(synthetic_ledgers):
-    r = reproduce(synthetic_ledgers)
+    r = audit_cohort(synthetic_ledgers, LEDGER_GRID)
     return r, sweep.cohort_from_reproduction(r)
 
 
@@ -121,7 +123,7 @@ def test_closed_form_equals_route_cost(ledger_cohort, synthetic_ledgers):
     grid = [qrq.L1, qrq.UNIT, dataclasses.replace(qrq.L1, lookup=3, g_quantum=300)]
     points = [sweep.reprice(cohort, p) for p in grid]
     checked = 0
-    for day in find_ledger_days(synthetic_ledgers):
+    for day in synthetic_ledgers:
         for tree, path in day.paths.items():
             for row in read_ledger(path):
                 i = index.get((day.source_id, day.date, row["query_id"]))

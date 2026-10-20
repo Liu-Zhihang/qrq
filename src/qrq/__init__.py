@@ -26,7 +26,7 @@ from .index import TREE_KINDS, AccessPlan, ClassicalAccess, SpatioTemporalIndex
 from .prices import L1, UNIT, PriceTable, decompose_quantum_cost, route_cost, route_costs
 from .records import POINT, backend_arrays, load_points, make_points, save_points, validate_points
 from .routes import CLASSICAL_ROUTES, QRQ_FW, ROUTES, AccessRoute, evaluate_routes
-from .workload import Window, adjacent_pairs, classify_pair, register_windows
+from .workload import Window, WindowGrid, adjacent_pairs, classify_pair, register_windows
 
 __version__ = "0.2.0"
 
@@ -47,6 +47,7 @@ __all__ = [
     "TREE_KINDS",
     "UNIT",
     "Window",
+    "WindowGrid",
     "WindowResult",
     "adjacent_pairs",
     "backend_arrays",

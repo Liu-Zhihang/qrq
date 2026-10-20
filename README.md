@@ -54,9 +54,11 @@ points = qrq.make_points(
 )
 
 indexes = {kind: qrq.SpatioTemporalIndex.build(points, kind=kind) for kind in qrq.TREE_KINDS}
+grid = qrq.WindowGrid(widths=(500, 1000, 2000), durations=(900, 3600, 21600),
+                      centres=(43200,), anchor_step=3000.0)
 
-for window in qrq.register_windows(cx=5000.0, cy=5000.0):
-    if window.anchor_index != (1, 1) or window.temporal_center_s != 43200:
+for window in qrq.register_windows(cx=5000.0, cy=5000.0, grid=grid):
+    if window.anchor_index != (1, 1):
         continue
     result = qrq.evaluate_window(indexes, window.box, qrq.L1, verify=True)
     if result.k:

@@ -1,17 +1,20 @@
-"""The registered window workload and adjacent-scale pairs.
+"""Registered window workloads and adjacent-scale pairs.
 
-Each source-day is queried with a fixed grid of baseline windows centred on
-a 3 x 3 anchor lattice around a reference point ``(cx, cy)``:
+A workload is a fixed grid of closed space-time windows registered before
+any cost is computed. The grid is supplied by the caller as a
+:class:`WindowGrid`:
 
-* anchors ``x = cx + (ix - 1) * step``, ``y = cy + (iy - 1) * step`` with
-  ``ix, iy in {0, 1, 2}`` and ``step = 20000 / 3`` metres;
-* temporal centres 21600, 43200 and 64800 s (06:00, 12:00, 18:00);
-* square spatial widths 250, 500, 1000, 2000, 5000 and 10000 m;
-* durations 900, 3600, 21600 and 86400 s.
+* an ``anchors x anchors`` lattice centred on a reference point ``(cx, cy)``
+  with spacing ``anchor_step``: anchor ``(ix, iy)`` sits at
+  ``x = cx + (ix - (anchors - 1) / 2) * anchor_step`` and likewise for ``y``;
+* temporal centres ``centres`` (seconds of the index day);
+* square spatial widths ``widths`` and durations ``durations``, each in
+  ascending order.
 
-That is 9 * 3 * 6 * 4 = 648 windows per source-day. A window whose time
-span leaves ``[0, 86400]`` is registered with status
-``unsupported_index_span`` and is never costed.
+Every combination is one window, registered in the order
+``(ix, iy, centre, width, duration)``. A window whose time span leaves
+``[0, day_seconds]`` is registered with status ``unsupported_index_span`` and
+is never costed.
 
 Adjacent-scale pairs change exactly one extent to the next grid value
 (width for the ``space`` axis, duration for the ``time`` axis) while keeping
@@ -24,12 +27,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, Sequence
 
 from .geometry import SpaceTimeBox
-
-WIDTHS: tuple[int, ...] = (250, 500, 1000, 2000, 5000, 10000)
-DURATIONS: tuple[int, ...] = (900, 3600, 21600, 86400)
-CENTRES: tuple[int, ...] = (21600, 43200, 64800)
-ANCHOR_STEP: float = 20000 / 3
-DAY_SECONDS: int = 86400
+from .records import DAY_SECONDS
 
 SCHEDULED = "scheduled"
 UNSUPPORTED_INDEX_SPAN = "unsupported_index_span"
@@ -38,9 +36,49 @@ Direction = Literal["forward", "reverse", "no_cross"]
 Axis = Literal["space", "time"]
 
 
+def _ascending(name: str, values: Sequence[float]) -> tuple[float, ...]:
+    values = tuple(values)
+    if not values or any(v <= 0 for v in values) or any(a >= b for a, b in zip(values, values[1:])):
+        raise ValueError(f"{name} must be positive and strictly ascending")
+    return values
+
+
+@dataclass(frozen=True)
+class WindowGrid:
+    """Caller-supplied specification of a registered window grid.
+
+    ``widths`` (metres) and ``durations`` (seconds) are strictly ascending;
+    ``centres`` are temporal centres in seconds of the index day;
+    ``anchors`` is the number of anchors per axis and ``anchor_step`` their
+    spacing in metres. ``day_seconds`` is the length of the index day
+    (the record convention of :mod:`qrq.records` by default).
+    """
+
+    widths: tuple[float, ...]
+    durations: tuple[float, ...]
+    centres: tuple[float, ...]
+    anchor_step: float
+    anchors: int = 3
+    day_seconds: float = DAY_SECONDS
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "widths", _ascending("widths", self.widths))
+        object.__setattr__(self, "durations", _ascending("durations", self.durations))
+        object.__setattr__(self, "centres", tuple(self.centres))
+        if not self.centres:
+            raise ValueError("at least one temporal centre is required")
+        if self.anchors < 1 or not self.anchor_step > 0:
+            raise ValueError("anchors must be >= 1 and anchor_step positive")
+
+    @property
+    def size(self) -> int:
+        """Number of registered windows per reference point."""
+        return self.anchors ** 2 * len(self.centres) * len(self.widths) * len(self.durations)
+
+
 @dataclass(frozen=True)
 class Window:
-    """One registered baseline window."""
+    """One registered window."""
 
     query_id: str
     anchor_index: tuple[int, int]
@@ -61,27 +99,19 @@ def window_id(ix: int, iy: int, centre: Any, width: Any, duration: Any) -> str:
     return f"g{ix}{iy}_c{centre}_w{width}_d{duration}"
 
 
-def register_windows(
-    cx: float,
-    cy: float,
-    widths: Sequence[float] = WIDTHS,
-    durations: Sequence[float] = DURATIONS,
-    centres: Sequence[float] = CENTRES,
-    anchor_step: float = ANCHOR_STEP,
-    day_seconds: float = DAY_SECONDS,
-) -> list[Window]:
-    """Return the baseline windows of one source-day, in registration order.
+def register_windows(cx: float, cy: float, grid: WindowGrid) -> list[Window]:
+    """Return the registered windows of ``grid`` around ``(cx, cy)``, in order.
 
-    With the defaults this yields the 648 windows of the sealed workload,
-    ordered by ``(ix, iy, centre, width, duration)``. Bounds are
-    ``[x - w/2, x + w/2, y - w/2, y + w/2, tc - d/2, tc + d/2]``.
+    Bounds are ``[x - w/2, x + w/2, y - w/2, y + w/2, tc - d/2, tc + d/2]``.
     """
+    centre_offset = (grid.anchors - 1) / 2
     out: list[Window] = []
-    for ix, iy, tc, w, d in itertools.product(range(3), range(3), centres, widths, durations):
-        x = cx + (ix - 1) * anchor_step
-        y = cy + (iy - 1) * anchor_step
+    lattice = range(grid.anchors)
+    for ix, iy, tc, w, d in itertools.product(lattice, lattice, grid.centres, grid.widths, grid.durations):
+        x = cx + (ix - centre_offset) * grid.anchor_step
+        y = cy + (iy - centre_offset) * grid.anchor_step
         lo, hi = tc - d / 2, tc + d / 2
-        status = UNSUPPORTED_INDEX_SPAN if lo < 0 or hi > day_seconds else SCHEDULED
+        status = UNSUPPORTED_INDEX_SPAN if lo < 0 or hi > grid.day_seconds else SCHEDULED
         box = SpaceTimeBox(x - w / 2, x + w / 2, y - w / 2, y + w / 2, lo, hi)
         out.append(Window(window_id(ix, iy, tc, w, d), (ix, iy), w, d, tc, box, status))
     return out
@@ -100,19 +130,15 @@ def _anchor(item: Any) -> tuple[int, ...]:
     return tuple(int(v) for v in item.anchor_index)
 
 
-def adjacent_pairs(
-    items: Sequence[Any],
-    widths: Sequence[float] = WIDTHS,
-    durations: Sequence[float] = DURATIONS,
-) -> list[ScalePair]:
-    """Return all adjacent-scale pairs among ``items``.
+def adjacent_pairs(items: Sequence[Any], grid: WindowGrid) -> list[ScalePair]:
+    """Return all adjacent-scale pairs among ``items`` on ``grid``.
 
     ``items`` are objects with ``anchor_index``, ``temporal_center_s``,
     ``width_m`` and ``duration_s`` attributes (for example :class:`Window`
-    or :class:`qrq.ledger.LedgerEndpoint`), drawn from one source-day and
-    one comparator. A pair is reported only when both windows are present,
-    so missing (empty or unsupported) windows are never skipped over.
-    Pairs are listed per small window, ``space`` before ``time``.
+    or :class:`qrq.ledger.LedgerEndpoint`), drawn from one reference point
+    and one comparator. A pair is reported only when both windows are
+    present, so missing (empty or unsupported) windows are never skipped
+    over. Pairs are listed per small window, ``space`` before ``time``.
     """
     index = {
         (_anchor(a), a.temporal_center_s, a.width_m, a.duration_s): a for a in items
@@ -120,8 +146,8 @@ def adjacent_pairs(
     pairs: list[ScalePair] = []
     for a in items:
         for axis, values, field_name in (
-            ("space", list(widths), "width_m"),
-            ("time", list(durations), "duration_s"),
+            ("space", list(grid.widths), "width_m"),
+            ("time", list(grid.durations), "duration_s"),
         ):
             j = values.index(getattr(a, field_name))
             if j == len(values) - 1:
