@@ -10,13 +10,13 @@ changes relative to 0.1.0.
 
 ### Added
 
-* `qrq.sweep`: exact repricing of the per-tree endpoints over a price grid;
-  reproduces the 45-point coherent-lookup by quantum-geometry sweep.
+* `qrq.sweep`: exact repricing of per-tree endpoints over a caller-supplied
+  price grid, with optional caller-supplied group labels.
 * `amplified` option in `qrq.engine` and `qrq.ledger`: the envelope with the
-  priced amplitude-amplification route, as published.
-* `qrq.tasks`: crossing versus standardised noncrossing comparison with the
-  source-stratified date-block bootstrap.
+  priced amplitude-amplification route.
 * Per-tree endpoints in ledger reproduction.
+* Caller-supplied window grids: registering windows and forming
+  adjacent-scale pairs takes the grid from the caller.
 * Draft specifications in `docs/specs/`: record schema (points and places),
   semantic predicates and costs, plugins.
 * `CHANGELOG.md` and `CONTRIBUTING.md`.
@@ -27,8 +27,9 @@ changes relative to 0.1.0.
   campaign, fleet, ...) replaces the domain-specific names of the reference
   study in `qrq.sweep`: `SweepCohort.group`, `group_of`,
   `groups_with_forward` and the per-source row key `group`.
-* The reproduction guide and the data-access list of the reference study
-  moved to `docs/reference_study/` (`reproduction.md`, `data_access.md`).
+* Study-specific reproduction, sealed regressions and the
+  reconstruction-task comparison are not part of qrq. A study package
+  depends on qrq and supplies its own grid, evidence readers and tests.
 * The vendored reversible-gate module is now `qrq._vendor.reversible_access`
   (renamed from its archive file name) and vendored docstrings use
   domain-neutral wording; code bodies are unchanged and fingerprinted in

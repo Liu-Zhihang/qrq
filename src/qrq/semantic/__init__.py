@@ -1,7 +1,7 @@
 """EXPERIMENTAL extension point for semantic predicates.
 
-Nothing in this sub-package is used to produce any published result. It
-fixes the interfaces a future semantic query layer should implement:
+Nothing in this sub-package has a matched cost model yet. It fixes the
+interfaces a future semantic query layer should implement:
 
 * :class:`SemanticEncoder` maps labels (land use, activity type, ...) onto
   one ordered numeric axis so that a label set becomes an interval;

@@ -3,7 +3,7 @@
 Status: draft 0.1, released with qrq 0.2.0. Implemented in 0.2.0:
 `SemanticEncoder`, `CategoricalIntervalEncoder` and `SemanticBox` (single
 interval, filtered after the 3-D index). Everything else in this document is
-specified for later releases and produces no published result.
+specified for later releases and has no implementation yet.
 
 The key words MUST, SHOULD and MAY are used as in RFC 2119.
 
@@ -111,7 +111,7 @@ inspects. When `K_S = 0` the window is empty and is excluded, as for boxes.
   SHOULD include a sweep over both.
 * Ledger rows gain `n_sem` (classical semantic tests) and `n_qsem` (coherent
   semantic tests) per route. Existing ledgers remain valid with both counts
-  equal to zero, so published results are unchanged.
+  equal to zero, so existing ledgers price exactly as before.
 
 ## 5. Workloads
 
@@ -130,9 +130,9 @@ larger selection has `Q > C` (or the reverse), exactly as for space and time.
 
 ## 6. Reporting
 
-Results produced with semantic predicates SHOULD report the items of the
-evaluation checklist used for the reference study: task and target, how
-the semantic selection was chosen independently of access advantage, local
+Results produced with semantic predicates SHOULD report the items of an
+evaluation checklist: task and target, how the semantic selection was
+chosen independently of access advantage, local
 support and denominators, the output contract and its consumer, the
 strongest classical competitor, prices and their sweep, reuse, and negative
 results.

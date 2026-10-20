@@ -102,10 +102,9 @@ route is cheaper. See `docs/interfaces.md` for every interface.
   reselects both tree minima at every point and summarises lower windows,
   median `Q/C`, forward and reverse pairs and their change relative to `L1`,
   pooled, per source and per group.
-* **Reconstruction-task comparison (`qrq.tasks`).** For pairs of
-  reconstruction windows, compares how often forward crossings and
-  standardised noncrossing expansions worsen the reconstruction error, with
-  a source-stratified date-block bootstrap.
+Comparing reconstruction tasks, and reproducing one study's published
+tables, belongs to a study package that depends on qrq rather than to qrq
+itself.
 
 ```python
 from qrq import sweep
@@ -139,22 +138,9 @@ The release plan is in `docs/roadmap.md`; contribution rules are in
   reference implementation with unchanged algorithms. Every vendored file,
   its original SHA-256 and every edit are listed in
   `provenance/vendored_sources.json`; the test suite checks these hashes.
-* The synthetic test suite runs anywhere. The optional sealed regressions
-  belong to the reference study of the accompanying manuscript, one
-  application of qrq to mobility and environmental monitoring records. They
-  re-price all 321 per-tree resource ledgers of its workload (107 source-days
-  x 3 indexes) and reproduce the published counts: 13,370 non-empty baseline
-  windows, 742 with `Q < C`, and 17,592 adjacent-scale pairs of which 1,060
-  cross forward and 11 cross in reverse. Those ledgers derive from restricted
-  record data and are not part of this repository; see
-  `docs/reference_study/reproduction.md`.
-* Further optional sealed tests reproduce the published price sweep (all 45
-  points bit for bit; at unit prices 1,559 lower windows and 1,357 / 49
-  crossings), the amplitude-amplification sensitivity (869 lower windows,
-  1,211 / 13 crossings) and the reconstruction-task comparison (speed
-  +0.0099 and monitoring +15.722 percentage points) from the sealed inputs.
-* The public data sources of the reference study are listed in
-  `docs/reference_study/data_access.md`.
+* The synthetic test suite runs anywhere and needs no study data. Reproducing
+  a published study is the job of a separate package that depends on a pinned
+  qrq version and reads that study's evidence.
 
 ## Repository layout
 
@@ -165,8 +151,7 @@ The release plan is in `docs/roadmap.md`; contribution rules are in
     provenance/           vendored-source manifest
     docs/                 interfaces and roadmap
     docs/specs/           draft specifications: records, semantic predicates, plugins
-    docs/reference_study/ reproduction and data access of the reference study
-    tests/                synthetic tests and the optional sealed regressions
+    tests/                synthetic tests
 
 ## License
 

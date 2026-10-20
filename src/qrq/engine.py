@@ -7,15 +7,14 @@ For one window the engine evaluates every route on every index and forms
   ``C_BLOCK``, ``C_ENUM``, ``C_TABLE_BLOCK`` and ``C_TABLE_ENUM``;
 * ``D = log2(Q / C)``; ``D < 0`` means the quantum route is cheaper.
 
-Tie-breaking reproduces the sealed analysis: the quantum tree is the first
+Tie-breaking follows the reference implementation: the quantum tree is the first
 minimal tree in iteration order, and the classical choice minimises the
 tuple ``(cost, tree, route)``. Empty windows (``k == 0``) have no envelope.
 
 Optionally the envelope also admits unknown-K amplitude amplification
-(``QRQ_AA``, :mod:`qrq.amplitude`) as published in the sensitivity
-analysis: the amplified route is priced on the quantum tree already selected
-by the first-witness costs and ``Q = min(Q_FW, Q_AA)``
-(:func:`include_amplified`).
+(``QRQ_AA``, :mod:`qrq.amplitude`): the amplified route is priced on the
+quantum tree already selected by the first-witness costs and
+``Q = min(Q_FW, Q_AA)`` (:func:`include_amplified`).
 """
 from __future__ import annotations
 
@@ -64,7 +63,7 @@ def select_envelope(costs_by_tree: Iterable[tuple[str, Mapping[str, float]]]) ->
     """Select ``Q`` and ``C`` from ``(tree, {route: cost})`` pairs.
 
     The iteration order of ``costs_by_tree`` is the quantum tie-break order;
-    the sealed analysis used ``packed_rtree, tb_tree, kd_tree``.
+    :data:`qrq.index.TREE_KINDS` gives ``packed_rtree, tb_tree, kd_tree``.
     """
     candidates = list(costs_by_tree)
     if not candidates:
@@ -91,7 +90,7 @@ def include_amplified(env: Envelope, amplified_cost: float) -> Envelope:
     """Admit the amplitude-amplification route into a first-witness envelope.
 
     ``amplified_cost`` must be the ``QRQ_AA`` cost on ``env.quantum_tree``.
-    This is the published sensitivity rule: the quantum tree is not
+    The quantum tree is not
     re-optimised, ``Q = min(Q_FW, Q_AA)`` on that tree, and ``quantum_route``
     becomes ``QRQ_AA`` only when the amplified cost is strictly lower. The
     classical side is unchanged.
