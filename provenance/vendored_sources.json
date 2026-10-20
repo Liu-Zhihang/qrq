@@ -108,6 +108,24 @@
       "origin": "cities_context_perturbation_20260921_v1r1/src",
       "original_sha256": "238d117786d410a98cfb16f262a635f1e4293b0a7f609a1c6504be5dccdbb8a5",
       "reason": "The envelope selection of endpoint() is reimplemented as qrq.engine.select_envelope (same tie-breaking), the adjacent-scale pairing as qrq.workload.adjacent_pairs and direction() as qrq.workload.classify_pair."
+    },
+    {
+      "original_file": "analyze.py",
+      "origin": "cities_price_sweep_20260924_v1/src",
+      "original_sha256": "f98cf20bb7fa672573c289eb37071e59a28386ed3f2eae23378677ffdd5c146b",
+      "reason": "Reads sealed tables by fixed relative paths and writes run artefacts. The closed-form per-tree repricing, tree reselection and the grid, source and pair readouts are reimplemented as qrq.sweep with the same expressions and evaluation order; the per-tree endpoints come from the ledgers (qrq.ledger.TreeEndpoint)."
+    },
+    {
+      "original_file": "analyze_methods.py",
+      "origin": "cities_method_monitoring_stage_20260922_v1",
+      "original_sha256": "0cf9ace71caad955c86fb75c1a36b95337336170d5d83dd22cc48f6900b0f8df",
+      "reason": "Reads sealed tables by fixed relative paths and enforces run-time limits. The joint quantum cost min(Q, Q_aa) with AA priced on the originally selected quantum tree is reimplemented as qrq.engine.include_amplified and the amplified option of qrq.engine.evaluate_window and qrq.ledger.reproduce; the AA price is the vendored aa_challenger.price."
+    },
+    {
+      "original_file": "analyze.py",
+      "origin": "cities_crossing_information_20260924_v1/src",
+      "original_sha256": "6050e5caaf4a11f5cfbe42e85ffcf0cd3df09626e5fec3fa2858e1ada2fce331",
+      "reason": "Reads sealed tables by fixed relative paths and contains source-specific input handling. Pair classification, tie-excluded worsening rates, within-stratum standardisation, family pooling and the date-block bootstrap are reimplemented as the generic qrq.tasks; input normalisation lives in tests/task_inputs.py. Spearman correlations and the exploratory unstandardised interval are not ported."
     }
   ]
 }

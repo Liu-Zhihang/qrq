@@ -30,6 +30,10 @@ Open items, roughly in order:
 
 * Trajectory segments (the backend already supports segments; the published
   workload uses points only).
-* Further price scenarios and sensitivity sweeps over `PriceTable`.
-* Amplitude amplification as a fourth quantum route in the envelope
-  (`qrq.amplitude` provides the cost; it is not part of the main envelope).
+* Sweeps over the gate price, `lam` and `repeats`. `qrq.sweep` varies the
+  coherent lookup and geometry prices only; the ledgers hold the full route
+  rows, so the other prices could be re-priced per route.
+* A three-tree amplitude-amplification envelope. The `amplified` option
+  prices `QRQ_AA` on the first-witness quantum tree only, as published;
+  choosing the quantum tree by the joint cost is not implemented.
+* A command-line entry point for the price sweep and the task comparison.

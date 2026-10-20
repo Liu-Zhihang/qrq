@@ -83,6 +83,30 @@ discovery and metadata plus `lambda r (2L - b)`). The main published scenario
 the three indexes and the four classical routes. `D < 0` means the quantum
 route is cheaper. See `docs/interfaces.md` for every interface.
 
+## Sensitivity and task analyses
+
+* **Amplitude amplification in the envelope.** `evaluate_window(...,
+  amplified=True)` and `qrq.ledger.reproduce(..., amplified=True)` also admit
+  unknown-K amplitude amplification (`QRQ_AA`, `qrq.amplitude`) on the
+  quantum tree selected by the first-witness costs, `Q = min(Q_FW, Q_AA)`,
+  as in the published sensitivity analysis.
+* **Exact price sweep (`qrq.sweep`).** Re-prices the per-tree endpoints of a
+  fixed cohort over a grid of coherent lookup and coherent geometry prices,
+  reselects both tree minima at every point and summarises lower windows,
+  median `Q/C`, forward and reverse pairs and their change relative to `L1`.
+* **Reconstruction-task comparison (`qrq.tasks`).** For pairs of
+  reconstruction windows, compares how often forward crossings and
+  standardised noncrossing expansions worsen the reconstruction error, with
+  a source-stratified date-block bootstrap.
+
+```python
+from qrq import sweep
+from qrq.ledger import reproduce
+
+cohort = sweep.cohort_from_reproduction(reproduce("/path/to/evidence"))
+tables = sweep.sweep(cohort, sweep.price_grid())   # 45 points, L1 first
+```
+
 ## Reproducibility
 
 * The C++ backend and the core Python resource code are vendored from the
@@ -95,6 +119,11 @@ route is cheaper. See `docs/interfaces.md` for every interface.
   windows, 742 with `Q < C`, and 17,592 adjacent-scale pairs of which 1,060
   cross forward and 11 cross in reverse. Those ledgers derive from restricted
   record data and are not part of this repository; see `docs/reproducing.md`.
+* Further optional sealed tests reproduce the published price sweep (all 45
+  points bit for bit; at unit prices 1,559 lower windows and 1,357 / 49
+  crossings), the amplitude-amplification sensitivity (869 lower windows,
+  1,211 / 13 crossings) and the reconstruction-task comparison (speed
+  +0.0099 and monitoring +15.722 percentage points) from the sealed inputs.
 * Public data sources are listed in `docs/data_access.md`.
 
 ## Repository layout
@@ -105,7 +134,7 @@ route is cheaper. See `docs/interfaces.md` for every interface.
     src/qrq/semantic/   experimental semantic-predicate interfaces
     provenance/         vendored-source manifest
     docs/               interfaces, reproduction, data access, roadmap
-    tests/              synthetic tests and the optional sealed regression
+    tests/              synthetic tests and the optional sealed regressions
 
 ## License
 
