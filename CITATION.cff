@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "qrq: quantum range queries over space-time point records"
+type: software
+version: 0.1.0
+date-released: 2026-10-20
+license: MIT
+authors:
+  - name: "Anonymous for double-blind review"
+abstract: >-
+  Matched classical and quantum access-route resource accounting for closed
+  space-time box queries over static spatio-temporal indexes of point records.
+keywords:
+  - range query
+  - spatio-temporal index
+  - quantum algorithms
+  - resource estimation
+  - mobility data
