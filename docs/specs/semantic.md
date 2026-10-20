@@ -116,7 +116,8 @@ inspects. When `K_S = 0` the window is empty and is excluded, as for boxes.
 ## 5. Workloads
 
 Semantic adjacency mirrors the widening and lengthening pairs of the
-published workload. A registered semantic workload fixes, before costing,
+space-time workload (`qrq.workload`). A registered semantic workload fixes,
+before costing,
 
 * the space-time window grid;
 * the semantic ladder: taxonomy levels from leaf to root for interval sets,
@@ -130,7 +131,7 @@ larger selection has `Q > C` (or the reverse), exactly as for space and time.
 ## 6. Reporting
 
 Results produced with semantic predicates SHOULD report the items of the
-evaluation checklist used for the published workload: task and target, how
+evaluation checklist used for the reference study: task and target, how
 the semantic selection was chosen independently of access advantage, local
 support and denominators, the output contract and its consumer, the
 strongest classical competitor, prices and their sweep, reuse, and negative

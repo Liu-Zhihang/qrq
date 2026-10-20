@@ -1,17 +1,21 @@
 # Roadmap
 
 qrq is the shared core for quantum range queries over spatio-temporal and
-semantic urban records: trajectories now, places (POIs) and their text
-next. Specifications for the extensions are in `docs/specs/`; they are drafts
-and produce no published result until implemented and tested.
+semantic records from any domain (mobility traces, ocean drifters, wildlife
+tracks, places): trajectories now, places (POIs) and their text next.
+Specifications for the extensions are in `docs/specs/`; they are drafts and
+produce no published result until implemented and tested. The reference
+study of the accompanying manuscript is one application
+(`docs/reference_study/`).
 
 ## Releases
 
 **0.2.0 (this release).** Frozen reference for the accompanying manuscript.
-Reproduces the access cohort, the 45-point price sweep, the
-amplitude-amplification sensitivity and the reconstruction-task comparison
-from sealed evidence. Adds the draft specifications for records, semantic
-predicates and plugins. No change to any published number.
+Reproduces the reference study's access cohort, 45-point price sweep,
+amplitude-amplification sensitivity and reconstruction-task comparison from
+sealed evidence. Adds the draft specifications for records, semantic
+predicates and plugins, and uses domain-neutral names (generic group
+labels). No change to any published number.
 
 **0.3.0, places and plugins.**
 

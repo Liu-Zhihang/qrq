@@ -139,7 +139,7 @@ centre and other extent fixed; missing windows are never skipped over.
 
 `find_ledger_days`, `read_ledger`, `audit_day` and `reproduce` re-price the
 sealed per-tree ledgers and rebuild the envelope counts; see
-`docs/reproducing.md`.
+`docs/reference_study/reproduction.md`.
 
 * `reproduce(root, prices=L1, arm="baseline", variant="base",
   rel_tol=1e-12, amplified=False) -> Reproduction` with `windows`
@@ -161,7 +161,7 @@ gate price, `lam` and `repeats` fixed; `lam == repeats == 1`). Per tree,
     Q' = P0 + (M/K) (G + 2L + g_q + 1 + b) + 2L - b
     C' = C - n_L (L_ref - L)
 
-with `n_L = classical_lookups` (2 in the published workload, so the
+with `n_L = classical_lookups` (2 for the classical routes of `qrq.routes`, so the
 classical arg-min route is unchanged). Both tree minima are reselected at
 every point with the envelope tie rule and pairs are re-classified with
 `D' = log2(Q'/C')`. The evaluation order matches the sealed sweep, so its

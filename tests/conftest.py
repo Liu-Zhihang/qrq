@@ -9,6 +9,9 @@ test time through environment variables:
 ``QRQ_SEALED_SWEEP``    directory with ``price_grid.csv``, ``price_by_source.csv``, ``price_pairs.csv``
 ``QRQ_SEALED_AA``       directory with ``aa_endpoints.csv.gz`` and ``aa_by_source.csv``
 ``QRQ_SEALED_TASKS``    archive root holding the reconstruction-task runs (``tests/task_inputs.py``)
+
+The evidence belongs to the reference study described in
+``docs/reference_study/reproduction.md``.
 """
 from __future__ import annotations
 

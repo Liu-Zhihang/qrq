@@ -1,4 +1,11 @@
-# Reproducing the published counts
+# Reference study: reproducing the published counts
+
+This document describes one application of qrq: the reference study of the
+accompanying manuscript, which applies qrq to mobility and environmental
+monitoring records. Its sources happen to be grouped by city. qrq itself
+knows only sources and generic group labels (`group_of` in `qrq.sweep`); in
+this study the city of each source is used as its group label. The public
+sources are listed in [data_access.md](data_access.md).
 
 ## What is reproduced
 
@@ -74,8 +81,11 @@ sources:
   They contain no coordinates of any record.
 * **tables**: `endpoints.csv.gz` (one row per window and comparator) and
   `scale_pairs.csv.gz` (one row per adjacent-scale pair). The ledgers carry
-  no city label; the sealed tests read the source-to-city mapping from the
-  `city` column of `endpoints.csv.gz`.
+  no group label; the sealed tests read the city of each source from the
+  `city` column of `endpoints.csv.gz` and use it as the group label (the
+  constant `SEALED_GROUP_COLUMN` in `tests/conftest.py`). The sealed sweep
+  tables use the same column and a pooled `cities_with_forward` column,
+  which the tests compare with `group` and `groups_with_forward`.
 * **inputs**: `geometry_qa.json` (city reference points in the metric CRS)
   and `queries/<source>.json` (registered windows with bounds).
 * **sweep tables**: `price_grid.csv`, `price_by_source.csv` and
@@ -84,8 +94,9 @@ sources:
   with `P0`, `G`, rank bits, `Q_aa`, `Q_joint`, `D_joint`) and
   `aa_by_source.csv` of the sealed amplitude-amplification analysis.
 * **task archive**: the sealed archive root holding, as run directories,
-  the four input runs and the comparison run listed in
-  `tests/task_inputs.py`:
+  the comparison run and the input runs listed in the comparison run's
+  `inputs/freeze.json`. `tests/task_inputs.py` discovers the input tables
+  from that file, in its order, and verifies each table's SHA-256:
 
   | run label (relative to the archive root)                    | files used                                       |
   |-------------------------------------------------------------|--------------------------------------------------|
@@ -97,14 +108,16 @@ sources:
 
   The speed run is one family with nine sources; the other three runs form
   the monitoring family (four task sources). `tests/task_inputs.py`
-  normalises their layouts into `qrq.tasks.TaskPair` records: two tables
-  have no source column (labels `jinan`, `dublin`), one has no axis column
-  (space pairs only), one has no query identifiers (endpoints matched by
-  target, width and duration) and one holds several metrics (only `D` is
-  used). Registered dates are the dates of each endpoint table.
+  normalises their layouts into `qrq.tasks.TaskPair` records: two
+  single-source runs have no source column (their source identifiers,
+  `jinan` and `dublin`, are the second field of the run label and agree with
+  the source named in the run configuration where one is stated), one has
+  no axis column (space pairs only), one has no query identifiers (endpoints
+  matched by target, width and duration) and one holds several metrics
+  (only `D` is used). Registered dates are the dates of each endpoint table.
 
 The public sources the records were drawn from are listed in
-`docs/data_access.md`.
+[data_access.md](data_access.md).
 
 ## Steps
 

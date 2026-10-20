@@ -23,7 +23,7 @@ from synthetic import random_boxes, synthetic_cloud
 def reference_module():
     path = os.environ.get("QRQ_REFERENCE_EXTENSION")
     if not path:
-        pytest.skip("QRQ_REFERENCE_EXTENSION is not set")
+        pytest.skip("QRQ_REFERENCE_EXTENSION is not set (see docs/reference_study/reproduction.md)")
     loader = importlib.machinery.ExtensionFileLoader("_qrq_matched", path)
     spec = importlib.util.spec_from_file_location("_qrq_matched", path, loader=loader)
     module = importlib.util.module_from_spec(spec)

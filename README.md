@@ -5,6 +5,11 @@ space-time box query over a static index of point records, when does a
 coherent (quantum) filtering route need fewer priced resources than the best
 exact classical route on the same index?
 
+The records can come from any domain: vehicle and pedestrian trajectories,
+ocean drifters, wildlife tracking collars, mobile sensor campaigns or places
+of interest. Sources may be grouped by any user-defined label (a region, a
+campaign, a fleet, ...), and qrq reports results per source and per group.
+
 For every window it
 
 1. builds three static bulk-loaded indexes over the same records
@@ -18,7 +23,7 @@ For every window it
    `Q` (best quantum), `C` (best classical) and `D = log2(Q / C)`.
 
 qrq is a resource-accounting model with explicitly priced oracles. It does not
-simulate city-scale quantum circuits, does not measure hardware run time and
+simulate large-scale quantum circuits, does not measure hardware run time and
 does not claim a hardware speed-up.
 
 ## Install
@@ -93,7 +98,8 @@ route is cheaper. See `docs/interfaces.md` for every interface.
 * **Exact price sweep (`qrq.sweep`).** Re-prices the per-tree endpoints of a
   fixed cohort over a grid of coherent lookup and coherent geometry prices,
   reselects both tree minima at every point and summarises lower windows,
-  median `Q/C`, forward and reverse pairs and their change relative to `L1`.
+  median `Q/C`, forward and reverse pairs and their change relative to `L1`,
+  pooled, per source and per group.
 * **Reconstruction-task comparison (`qrq.tasks`).** For pairs of
   reconstruction windows, compares how often forward crossings and
   standardised noncrossing expansions worsen the reconstruction error, with
@@ -110,9 +116,10 @@ tables = sweep.sweep(cohort, sweep.price_grid())   # 45 points, L1 first
 ## Ecosystem and specifications
 
 qrq is meant to be the shared core for quantum range queries over
-spatio-temporal and semantic urban records. Version 0.2.0 is the frozen
-reference for the accompanying manuscript; extensions are specified before
-they are implemented:
+spatio-temporal and, later, semantic records from any domain: mobility
+traces, ocean drifters, wildlife tracks, places and their descriptions.
+Version 0.2.0 is the frozen reference for the accompanying manuscript;
+extensions are specified before they are implemented:
 
 * `docs/specs/records.md`: point records (implemented) and place (POI)
   records with per-row licences, sidecars and dataset manifests;
@@ -130,29 +137,34 @@ The release plan is in `docs/roadmap.md`; contribution rules are in
   reference implementation with unchanged algorithms. Every vendored file,
   its original SHA-256 and every edit are listed in
   `provenance/vendored_sources.json`; the test suite checks these hashes.
-* The synthetic test suite runs anywhere. The sealed regression re-prices all
-  321 per-tree resource ledgers of the published workload (107 source-days x
-  3 indexes) and reproduces the published counts: 13,370 non-empty baseline
+* The synthetic test suite runs anywhere. The optional sealed regressions
+  belong to the reference study of the accompanying manuscript, one
+  application of qrq to mobility and environmental monitoring records. They
+  re-price all 321 per-tree resource ledgers of its workload (107 source-days
+  x 3 indexes) and reproduce the published counts: 13,370 non-empty baseline
   windows, 742 with `Q < C`, and 17,592 adjacent-scale pairs of which 1,060
   cross forward and 11 cross in reverse. Those ledgers derive from restricted
-  record data and are not part of this repository; see `docs/reproducing.md`.
+  record data and are not part of this repository; see
+  `docs/reference_study/reproduction.md`.
 * Further optional sealed tests reproduce the published price sweep (all 45
   points bit for bit; at unit prices 1,559 lower windows and 1,357 / 49
   crossings), the amplitude-amplification sensitivity (869 lower windows,
   1,211 / 13 crossings) and the reconstruction-task comparison (speed
   +0.0099 and monitoring +15.722 percentage points) from the sealed inputs.
-* Public data sources are listed in `docs/data_access.md`.
+* The public data sources of the reference study are listed in
+  `docs/reference_study/data_access.md`.
 
 ## Repository layout
 
-    cpp/                C++ backend (vendored, byte-identical)
-    src/qrq/            Python package
-    src/qrq/_vendor/    vendored reference modules
-    src/qrq/semantic/   experimental semantic-predicate interfaces
-    provenance/         vendored-source manifest
-    docs/               interfaces, reproduction, data access, roadmap
-    docs/specs/         draft specifications: records, semantic predicates, plugins
-    tests/              synthetic tests and the optional sealed regressions
+    cpp/                  C++ backend (vendored, byte-identical)
+    src/qrq/              Python package
+    src/qrq/_vendor/      vendored reference modules
+    src/qrq/semantic/     experimental semantic-predicate interfaces
+    provenance/           vendored-source manifest
+    docs/                 interfaces and roadmap
+    docs/specs/           draft specifications: records, semantic predicates, plugins
+    docs/reference_study/ reproduction and data access of the reference study
+    tests/                synthetic tests and the optional sealed regressions
 
 ## License
 

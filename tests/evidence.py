@@ -10,12 +10,15 @@ from typing import Any, Collection, Mapping, Sequence
 
 import pytest
 
+GUIDE = "docs/reference_study/reproduction.md"
+"""Where the sealed evidence and its environment variables are described."""
+
 
 def env_dir(name: str) -> Path:
     """Return the directory named by ``name`` or skip the calling test."""
     value = os.environ.get(name)
     if not value:
-        pytest.skip(f"{name} is not set")
+        pytest.skip(f"{name} is not set (see {GUIDE})")
     path = Path(value)
     if not path.is_dir():
         pytest.fail(f"{name} does not point to a directory")

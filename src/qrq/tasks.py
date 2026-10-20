@@ -31,7 +31,8 @@ reconstruction more often than comparable expansions that do not.
 
 The estimator is generic: it consumes :class:`TaskPair` records and a date
 registry and knows nothing about particular sources. With the published
-inputs it reproduces the sealed tables exactly (``docs/reproducing.md``).
+inputs it reproduces the sealed tables exactly
+(``docs/reference_study/reproduction.md``).
 """
 from __future__ import annotations
 

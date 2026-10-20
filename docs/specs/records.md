@@ -106,7 +106,7 @@ record files never change when an encoder is added.
 ```json
 {
   "schema_version": "1.0",
-  "dataset_id": "example-city-places-2026-09",
+  "dataset_id": "example-places-2026-09",
   "kind": "places",
   "crs": "EPSG:32633",
   "epoch": "2026-01-01T00:00:00+00:00",

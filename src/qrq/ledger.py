@@ -19,7 +19,7 @@ sensitivity analysis. Every window keeps its per-tree inputs
 from the command line with ``python -m qrq.ledger --ledgers <root>``.
 
 The ledgers themselves are restricted evidence and are not distributed with
-this package; see ``docs/reproducing.md``.
+this package; see ``docs/reference_study/reproduction.md``.
 """
 from __future__ import annotations
 

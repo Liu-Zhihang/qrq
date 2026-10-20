@@ -1,4 +1,8 @@
-# Data access
+# Reference study: data access
+
+This document belongs to the reference study of the accompanying manuscript,
+one application of qrq (see [reproduction.md](reproduction.md)). Other
+applications bring their own sources and groupings.
 
 The published workload uses point records from 14 public sources in 13 cities
 (Beijing contributes two sources). qrq redistributes none of them. Obtain
@@ -48,4 +52,4 @@ For each source-day the records must be
 
 The exact cleaning, projection and study-domain rules of the published run,
 and the city reference points `(cx, cy)` used by `register_windows`, are
-part of the restricted inputs described in `docs/reproducing.md`.
+part of the restricted inputs described in [reproduction.md](reproduction.md).

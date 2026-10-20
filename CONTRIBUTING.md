@@ -1,9 +1,10 @@
 # Contributing
 
 qrq aims to be a common core for quantum range queries over spatio-temporal
-and semantic records. Contributions of datasets, encoders, indexes, routes
-and price tables are welcome, preferably as plugins (`docs/specs/plugins.md`)
-so that they can evolve independently of the core.
+and semantic records from any domain (mobility traces, ocean drifters,
+wildlife tracks, places, ...). Contributions of datasets, encoders, indexes,
+routes and price tables are welcome, preferably as plugins
+(`docs/specs/plugins.md`) so that they can evolve independently of the core.
 
 ## Ground rules
 
@@ -27,7 +28,7 @@ pytest
 ```
 
 Sealed regressions are skipped unless the evidence environment variables are
-set; see `docs/reproducing.md`.
+set; see `docs/reference_study/reproduction.md`.
 
 ## Style
 
