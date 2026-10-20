@@ -8,6 +8,7 @@ test time through environment variables:
 ``QRQ_SEALED_INPUTS``   directory with ``geometry_qa.json`` and ``queries/<source>.json``
 ``QRQ_SEALED_SWEEP``    directory with ``price_grid.csv``, ``price_by_source.csv``, ``price_pairs.csv``
 ``QRQ_SEALED_AA``       directory with ``aa_endpoints.csv.gz`` and ``aa_by_source.csv``
+``QRQ_SEALED_TASKS``    archive root holding the reconstruction-task runs (``tests/task_inputs.py``)
 """
 from __future__ import annotations
 
