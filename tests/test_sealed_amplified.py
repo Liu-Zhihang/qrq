@@ -1,6 +1,6 @@
 """AA-inclusive envelope against the published sensitivity (skipped by default).
 
-Needs ``QRQ_SEALED_LEDGERS``; the city count also needs ``QRQ_SEALED_TABLES``
+Needs ``QRQ_SEALED_LEDGERS``; the group count also needs ``QRQ_SEALED_TABLES``
 and the row-level comparison ``QRQ_SEALED_AA`` (the sealed
 ``aa_endpoints.csv.gz`` and ``aa_by_source.csv``).
 """
@@ -51,9 +51,9 @@ def test_amplified_envelope_counts(sealed_reproduction, sealed_amplified):
         assert (a.quantum_tree, a.C, a.Q) == (b.quantum_tree, b.C, b.filter_cost)
 
 
-def test_amplified_cities(sealed_amplified, sealed_cities):
-    forward = {sealed_cities[p.source_id] for p in sealed_amplified.pairs if p.direction == "forward"}
-    assert (len(forward), len(set(sealed_cities.values()))) == (11, 13)
+def test_amplified_groups(sealed_amplified, sealed_groups):
+    forward = {sealed_groups[p.source_id] for p in sealed_amplified.pairs if p.direction == "forward"}
+    assert (len(forward), len(set(sealed_groups.values()))) == (11, 13)
 
 
 def test_amplified_matches_sealed_tables(sealed_reproduction, sealed_amplified):

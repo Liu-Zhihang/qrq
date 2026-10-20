@@ -26,7 +26,7 @@ def tiny_cohort(**changes) -> sweep.SweepCohort:
     """Three windows on two trees; the last window has tied quantum trees."""
     fields = dict(
         keys=(("s1", "d1", "a"), ("s1", "d1", "b"), ("s2", "d2", "a")),
-        city=np.array(["x", "x", "y"]),
+        group=np.array(["x", "x", "y"]),
         k=np.array([10, 20, 5]),
         width_m=np.array([500, 1000, 250]),
         duration_s=np.array([900, 900, 3600]),
@@ -107,9 +107,11 @@ def test_cohort_from_reproduction(ledger_cohort):
     r, cohort = ledger_cohort
     assert len(cohort.keys) == r.window_count and len(cohort.small) == len(r.pairs)
     assert cohort.reference == qrq.L1 and cohort.trees == qrq.TREE_KINDS
-    np.testing.assert_array_equal(cohort.city, cohort.source)
-    merged = sweep.cohort_from_reproduction(r, city_of={"alpha": "one", "beta": "one"})
-    assert set(merged.city) == {"one"}
+    np.testing.assert_array_equal(cohort.group, cohort.source)
+    merged = sweep.cohort_from_reproduction(r, group_of={"alpha": "one", "beta": "one"})
+    assert set(merged.group) == {"one"}
+    rows = sweep.sweep(merged, [qrq.UNIT]).by_source
+    assert {row["group"] for row in rows} == {"one"} and "group" in rows[0]
 
 
 def test_closed_form_equals_route_cost(ledger_cohort, synthetic_ledgers):
@@ -168,4 +170,4 @@ def test_sweep_row_invariants(ledger_cohort):
                      "forward_added", "forward_lost"):
             assert overall[name] == row[name]
             assert sum(b[name] for b in block if b["source_id"] != "ALL" and b["axis"] == "all") == row[name]
-        assert row["cities_with_forward"] == row["sources_with_forward"] <= len(sources)
+        assert row["groups_with_forward"] == row["sources_with_forward"] <= len(sources)

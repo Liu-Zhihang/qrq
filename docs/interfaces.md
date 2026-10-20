@@ -171,26 +171,28 @@ agrees within `1e-12` relative error.
 * `price_grid(lookups=LOOKUP_PRICES, geometries=GEOMETRY_PRICES, base=L1)`:
   the 5 x 9 published grid, lookup outer; `REPORT_POINTS` lists the four
   reported points.
-* `SweepCohort`: window arrays (`keys`, `city`, `k`, `width_m`,
+* `SweepCohort`: window arrays (`keys`, `group`, `k`, `width_m`,
   `duration_s`), per-tree arrays (`M`, `G`, `bits`, `P0`, `C`,
   `classical_lookups`), pair indices `small`, `large` and `axis`, and the
   `reference` prices of `C`. Build it with
-  `cohort_from_reproduction(reproduction, city_of=None)` or
-  `cohort_from_endpoints(windows, pairs, city_of, reference, trees)`.
-  `city_of` maps source to city; without it each source is its own city.
+  `cohort_from_reproduction(reproduction, group_of=None)` or
+  `cohort_from_endpoints(windows, pairs, group_of, reference, trees)`.
+  `group_of` maps each source to a user-defined group label (a region, a
+  campaign, a fleet, ...); without it each source forms its own group.
 * `reprice(cohort, prices) -> PricePoint`: per-tree and selected `Q`, `C`,
   `D`, selected tree indices, `forward`/`reverse` pair flags and the
   structure share `(M/K) G / Q`, prefix share `P0 / Q`, `M/K` and `G/K` on
   the selected quantum tree.
 * `sweep(cohort, grid, reference=None, on_point=None) -> SweepTables` with
   `grid` (one pooled row per point), `by_source` (point x source) and
-  `pairs` (point x source incl. `ALL` x axis incl. `all`). Row keys are the
-  column names of the published tables: `eligible_windows`,
+  `pairs` (point x source incl. `ALL` x axis incl. `all`); source rows also
+  carry `source_id`, `group` and `source_days`. Row keys are:
+  `eligible_windows`,
   `lower_windows`, `q_over_c_median`; `15min_*`, `width_le_1km_*` and
   `K_ge_20000_*` (`_windows`, `_lower`, `_ratio_median`); quartiles
   `*_q25/_median/_q75` of `structure_share`, `prefix_share`, `M_over_K`,
   `G_over_K`, `C_over_K`; `forward_pairs`, `reverse_pairs`,
-  `eligible_pairs`, `sources_with_forward`, `cities_with_forward`,
+  `eligible_pairs`, `sources_with_forward`, `groups_with_forward`,
   `forward_retained`, `forward_added`, `forward_lost` (relative to the
   forward pairs at `reference`, default the cohort reference `L1`) and the
   tree tie counts. Quantiles are linear (`numpy.quantile`).

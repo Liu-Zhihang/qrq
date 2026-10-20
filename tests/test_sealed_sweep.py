@@ -1,8 +1,10 @@
 """Exact price sweep against the sealed evidence (skipped by default).
 
 Needs ``QRQ_SEALED_LEDGERS``; the full table comparison also needs
-``QRQ_SEALED_TABLES`` (city labels) and ``QRQ_SEALED_SWEEP`` (the sealed
+``QRQ_SEALED_TABLES`` (group labels) and ``QRQ_SEALED_SWEEP`` (the sealed
 ``price_grid.csv``, ``price_by_source.csv`` and ``price_pairs.csv``).
+The sealed tables name the group columns after the reference study's
+grouping; they are renamed to the qrq row keys before comparison.
 """
 from __future__ import annotations
 
@@ -26,6 +28,14 @@ REPORTED = {
 @pytest.fixture(scope="module")
 def sealed_cohort(sealed_reproduction):
     return sweep.cohort_from_reproduction(sealed_reproduction)
+
+
+def with_group_columns(rows: list[dict[str, str]], group_column: str) -> list[dict[str, str]]:
+    """Rename the sealed group-label column and the pooled group count to qrq's keys."""
+    rename = {group_column: "group"}
+    rename.update({c: "groups_with_forward" for c in rows[0]
+                   if c.endswith("_with_forward") and c != "sources_with_forward"})
+    return [{rename.get(c, c): v for c, v in row.items()} for row in rows]
 
 
 def test_closed_form_reproduces_l1_ledgers(sealed_reproduction, sealed_cohort):
@@ -62,14 +72,14 @@ def test_reported_price_points(sealed_cohort):
     assert (min(forward), max(forward)) == (1060, 1377)
 
 
-def test_price_tables_match_sealed_sweep(sealed_reproduction, sealed_cities):
+def test_price_tables_match_sealed_sweep(sealed_reproduction, sealed_groups, sealed_group_column):
     """All three sealed sweep tables are reproduced bit for bit."""
     root = env_dir("QRQ_SEALED_SWEEP")
-    cohort = sweep.cohort_from_reproduction(sealed_reproduction, city_of=sealed_cities)
+    cohort = sweep.cohort_from_reproduction(sealed_reproduction, group_of=sealed_groups)
     tables = sweep.sweep(cohort, sweep.price_grid())
-    assert_rows_equal(read_csv(root / "price_grid.csv"), tables.grid)
-    assert_rows_equal(read_csv(root / "price_by_source.csv"), tables.by_source)
-    assert_rows_equal(read_csv(root / "price_pairs.csv"), tables.pairs)
+    for name, ours in (("price_grid.csv", tables.grid), ("price_by_source.csv", tables.by_source),
+                       ("price_pairs.csv", tables.pairs)):
+        assert_rows_equal(with_group_columns(read_csv(root / name), sealed_group_column), ours)
     l1 = tables.grid[0]
-    assert (l1["sources_with_forward"], l1["cities_with_forward"]) == (12, 11)
+    assert (l1["sources_with_forward"], l1["groups_with_forward"]) == (12, 11)
     assert l1["q_over_c_median"] == 33.134379608128285

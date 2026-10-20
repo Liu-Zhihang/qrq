@@ -1,7 +1,7 @@
 """The registered window workload and adjacent-scale pairs.
 
 Each source-day is queried with a fixed grid of baseline windows centred on
-a 3 x 3 anchor lattice around a city reference point ``(cx, cy)``:
+a 3 x 3 anchor lattice around a reference point ``(cx, cy)``:
 
 * anchors ``x = cx + (ix - 1) * step``, ``y = cy + (iy - 1) * step`` with
   ``ix, iy in {0, 1, 2}`` and ``step = 20000 / 3`` metres;

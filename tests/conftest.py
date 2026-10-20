@@ -68,9 +68,18 @@ def sealed_amplified():
     return reproduce(env_dir("QRQ_SEALED_LEDGERS"), amplified=True)
 
 
+SEALED_GROUP_COLUMN = "city"  # external name of the group-label column in the sealed tables
+
+
 @pytest.fixture(scope="session")
-def sealed_cities() -> dict[str, str]:
-    """Source-to-city labels from the sealed endpoint table (ledgers carry none)."""
+def sealed_group_column() -> str:
+    """Name of the group-label column in the sealed reference tables."""
+    return SEALED_GROUP_COLUMN
+
+
+@pytest.fixture(scope="session")
+def sealed_groups() -> dict[str, str]:
+    """Source-to-group labels from the sealed endpoint table (ledgers carry none)."""
     path = env_dir("QRQ_SEALED_TABLES") / "endpoints.csv.gz"
     with gzip.open(path, "rt", newline="", encoding="utf-8") as handle:
-        return {row["source_id"]: row["city"] for row in csv.DictReader(handle)}
+        return {row["source_id"]: row[SEALED_GROUP_COLUMN] for row in csv.DictReader(handle)}

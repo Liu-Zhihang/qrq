@@ -30,7 +30,7 @@ Typical use with the sealed ledgers::
     from qrq.ledger import reproduce
     from qrq import sweep
 
-    cohort = sweep.cohort_from_reproduction(reproduce(root), city_of=cities)
+    cohort = sweep.cohort_from_reproduction(reproduce(root), group_of=groups)
     tables = sweep.sweep(cohort, sweep.price_grid())
     tables.grid[0]["lower_windows"]       # 742 at the L1 point
 """
@@ -89,10 +89,13 @@ class SweepCohort:
     trees in envelope tie-break order. ``small`` and ``large`` index the two
     windows of each adjacent pair; ``axis`` is the pair's expansion axis.
     ``C`` holds the cheapest classical cost of each tree at ``reference``.
+    ``group`` is a user-defined label that groups sources (a region, a
+    campaign, a fleet, ...); readouts count distinct groups as well as
+    distinct sources.
     """
 
     keys: tuple[tuple[str, str, str], ...]
-    city: np.ndarray
+    group: np.ndarray
     k: np.ndarray
     width_m: np.ndarray
     duration_s: np.ndarray
@@ -110,7 +113,7 @@ class SweepCohort:
 
     def __post_init__(self) -> None:
         w, t = len(self.keys), len(self.trees)
-        for name in ("city", "k", "width_m", "duration_s"):
+        for name in ("group", "k", "width_m", "duration_s"):
             if getattr(self, name).shape != (w,):
                 raise ValueError(f"{name} must have shape ({w},)")
         for name in ("M", "G", "bits", "P0", "C", "classical_lookups"):
@@ -138,7 +141,7 @@ class SweepCohort:
 def cohort_from_endpoints(
     windows: Iterable[Any],
     pairs: Iterable[Any],
-    city_of: Mapping[str, str] | None = None,
+    group_of: Mapping[str, str] | None = None,
     reference: PriceTable = L1,
     trees: Sequence[str] = TREE_KINDS,
 ) -> SweepCohort:
@@ -148,8 +151,8 @@ def cohort_from_endpoints(
     ``source_id``, ``date``, ``query_id``, ``k``, ``width_m``,
     ``duration_s`` and ``trees``); ``pairs`` are objects like
     :class:`qrq.ledger.PairRecord` (``source_id``, ``date``, ``axis``,
-    ``small_query``, ``large_query``). ``city_of`` maps source identifiers
-    to cities; without it every source counts as its own city.
+    ``small_query``, ``large_query``). ``group_of`` maps source identifiers
+    to group labels; without it every source forms its own group.
     """
     windows = list(windows)
     keys = tuple((w.source_id, w.date, w.query_id) for w in windows)
@@ -170,10 +173,10 @@ def cohort_from_endpoints(
     pairs = list(pairs)
     small = [index[(p.source_id, p.date, p.small_query)] for p in pairs]
     large = [index[(p.source_id, p.date, p.large_query)] for p in pairs]
-    cities = city_of or {}
+    groups = group_of or {}
     return SweepCohort(
         keys=keys,
-        city=np.array([cities.get(key[0], key[0]) for key in keys]),
+        group=np.array([groups.get(key[0], key[0]) for key in keys]),
         k=np.array([w.k for w in windows], dtype=np.int64),
         width_m=np.array([w.width_m for w in windows]),
         duration_s=np.array([w.duration_s for w in windows]),
@@ -191,9 +194,9 @@ def cohort_from_endpoints(
     )
 
 
-def cohort_from_reproduction(reproduction: Any, city_of: Mapping[str, str] | None = None) -> SweepCohort:
+def cohort_from_reproduction(reproduction: Any, group_of: Mapping[str, str] | None = None) -> SweepCohort:
     """Cohort of a :class:`qrq.ledger.Reproduction`, priced at its audit prices."""
-    return cohort_from_endpoints(reproduction.windows, reproduction.pairs, city_of, reproduction.prices)
+    return cohort_from_endpoints(reproduction.windows, reproduction.pairs, group_of, reproduction.prices)
 
 
 def _check_prices(prices: PriceTable, reference: PriceTable) -> None:
@@ -351,7 +354,7 @@ def grid_row(cohort: SweepCohort, point: PricePoint, reference_forward: np.ndarr
         reverse_pairs=pairs["reverse_pairs"],
         eligible_pairs=pairs["eligible_pairs"],
         sources_with_forward=len(set(cohort.pair_source[fwd])),
-        cities_with_forward=len(set(cohort.city[cohort.small[fwd]])),
+        groups_with_forward=len(set(cohort.group[cohort.small[fwd]])),
         forward_retained=pairs["forward_retained"],
         forward_added=pairs["forward_added"],
         forward_lost=pairs["forward_lost"],
@@ -402,7 +405,7 @@ def sweep(
         for source in sources:
             mask = window_source == source
             row = window_summary(cohort, point, mask)
-            row.update(source_id=source, city=str(cohort.city[mask][0]), source_days=source_days[source])
+            row.update(source_id=source, group=str(cohort.group[mask][0]), source_days=source_days[source])
             tables.by_source.append(row)
         for source in ["ALL"] + sources:
             in_source = np.ones(len(pair_source), dtype=bool) if source == "ALL" else pair_source == source
