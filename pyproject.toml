@@ -11,7 +11,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [{ name = "The qrq authors" }]
-keywords = ["range query", "spatio-temporal index", "semantic query", "quantum algorithms", "resource estimation", "mobility data"]
+keywords = ["range query", "spatio-temporal index", "semantic query", "quantum algorithms", "resource estimation", "trajectory data", "geospatial data"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",

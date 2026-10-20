@@ -21,6 +21,20 @@ changes relative to 0.1.0.
   semantic predicates and costs, plugins.
 * `CHANGELOG.md` and `CONTRIBUTING.md`.
 
+### Changed
+
+* A generic `group` label (any user-defined grouping of sources: region,
+  campaign, fleet, ...) replaces the domain-specific names of the reference
+  study in `qrq.sweep`: `SweepCohort.group`, `group_of`,
+  `groups_with_forward` and the per-source row key `group`.
+* The reproduction guide and the data-access list of the reference study
+  moved to `docs/reference_study/` (`reproduction.md`, `data_access.md`).
+* The vendored reversible-gate module is now `qrq._vendor.reversible_access`
+  (renamed from its archive file name) and vendored docstrings use
+  domain-neutral wording; code bodies are unchanged and fingerprinted in
+  `provenance/vendored_sources.json`.
+* Keywords: `trajectory data` and `geospatial data` replace `mobility data`.
+
 ## 0.1.0 - 2026-10-20
 
 * Records, geometry, index backend, routes, prices, engine and workload
