@@ -1,0 +1,113 @@
+{
+  "description": "Files copied from the reference implementation into qrq. Algorithms are unchanged. Paths are relative to the repository root; origins are run labels of the sealed reference archive, not file-system paths.",
+  "allowed_edit_classes": [
+    "import statements",
+    "removal of import-path manipulation",
+    "English-only comments",
+    "hard-coded prices replaced by keyword parameters with identical defaults"
+  ],
+  "files": [
+    {
+      "path": "cpp/trajectory_trees_3d.cpp",
+      "original_file": "trajectory_trees_3d.cpp",
+      "origin": "cities13_point_execution_20260912_v1/src",
+      "original_sha256": "457dee1a1b312a8bbc48f2b848d00112e18d2f12324270d1536e44219e244e05",
+      "vendored_sha256": "457dee1a1b312a8bbc48f2b848d00112e18d2f12324270d1536e44219e244e05",
+      "role": "C++ backend: three bulk-loaded tree layouts and the matched_query access plan; defines PYBIND11_MODULE(_qrq_matched, ...).",
+      "edits": []
+    },
+    {
+      "path": "cpp/qrq_matched_audit.inc",
+      "original_file": "qrq_matched_audit.inc",
+      "origin": "cities13_point_execution_20260912_v1/src",
+      "original_sha256": "4bfb20a84eefde0df3dca3a212e099c9096974f8f28432b6559e030b8845637c",
+      "vendored_sha256": "4bfb20a84eefde0df3dca3a212e099c9096974f8f28432b6559e030b8845637c",
+      "role": "Class-body include of trajectory_trees_3d.cpp (depth-first rank layout, matched_layout and matched_query). Required to compile the backend.",
+      "edits": []
+    },
+    {
+      "path": "src/qrq/_vendor/qrq_matched.py",
+      "original_file": "qrq_matched.py",
+      "origin": "cities13_point_execution_20260912_v1/src",
+      "original_sha256": "5616155c1a3d074665418f543ff9c280afd298741b24af1c325fbffe4f0e823f",
+      "vendored_sha256": "fce16bac850a33abeaccabe5f81184d8f8dd47352e5dd3384e7d1b3722a1c119",
+      "role": "Interval compiler for rank-state preparation, route resource vectors and the scalar price() function.",
+      "edits": [
+        "Changed 'from cities_reversible_access import mcx, gate_counts, apply_state' to the relative import 'from .cities_reversible_access import ...'."
+      ]
+    },
+    {
+      "path": "src/qrq/_vendor/cities_reversible_access.py",
+      "original_file": "cities_reversible_access.py",
+      "origin": "cities13_point_execution_20260912_v1/src (byte-identical copy also present in cities_scale_boundary_mechanism_20260914_v1/src)",
+      "original_sha256": "4cd33e1bfe3ab829149e03d610d2a00a9ea2a71da53bad4cffd0c795882b24cf",
+      "vendored_sha256": "4cd33e1bfe3ab829149e03d610d2a00a9ea2a71da53bad4cffd0c795882b24cf",
+      "role": "Reversible logical-gate reference: gate counting, multi-controlled X lowering, state simulation and the zero-reflection circuit.",
+      "edits": [],
+      "notes": "Unchanged. The function compiled_branches() lazily imports a module (cities_coherent_semantics) that is not vendored; qrq never calls it, and calling it raises ImportError."
+    },
+    {
+      "path": "src/qrq/_vendor/qrq_table_baseline.py",
+      "original_file": "qrq_table_baseline.py",
+      "origin": "cities13_point_execution_20260912_v1/src",
+      "original_sha256": "679b765f881db4523b243a33e2dcac1aa2a4c9a2d9c643b1272ea08901458c80",
+      "vendored_sha256": "25cd787ed76f34edd9af20d305e668542139755368550a2242a0f3d4295b2c4f",
+      "role": "Resource formula of the classical query-table baseline.",
+      "edits": [
+        "Changed 'from qrq_matched import compile_intervals,simulate_preparation' to the relative import 'from .qrq_matched import ...'.",
+        "Changed 'from cities_reversible_access import rom_circuit,execute_lanes,unpack_lanes,apply_state' to the relative import 'from .cities_reversible_access import ...'."
+      ]
+    },
+    {
+      "path": "src/qrq/_vendor/table_solver_contract.py",
+      "original_file": "table_solver_contract.py",
+      "origin": "cities13_point_execution_20260912_v1/src",
+      "original_sha256": "10e6b469da0550f8aaa1c9fb0dbee5000ae54fd3d436c159009966f57c0bfcca",
+      "vendored_sha256": "669d7280f4bc08a831053c8f19403320c79b128be93a6454137d97d8a3e6f118",
+      "role": "Adapter that derives the C_TABLE_BLOCK and C_TABLE_ENUM rows from a charged exact classical solver row.",
+      "edits": [
+        "Changed 'from qrq_table_baseline import table_resources' to the relative import 'from .qrq_table_baseline import table_resources'."
+      ]
+    },
+    {
+      "path": "src/qrq/_vendor/aa_challenger.py",
+      "original_file": "aa_challenger.py",
+      "origin": "cities_method_monitoring_stage_20260922_v1",
+      "original_sha256": "d1eb17d883de8dedec1f6fd201e47db6d5dbb9a1e986c11b56a0eee01009e436",
+      "vendored_sha256": "35f3313704ee3169dd679df48e5df0a96d421d8a86b0fbdf19735ba11c1be9f3",
+      "role": "Unknown-K randomized amplitude amplification: window policy, success probability, expected schedule cost and price().",
+      "edits": [
+        "Replaced 'import functools,math,sys' with 'import functools,math' and removed 'from pathlib import Path'; both were used only by the import-path manipulation below.",
+        "Removed the import-path manipulation: the module-level 'sys.dont_write_bytecode=True', the BASE directory computation and 'sys.path.insert(0,str(BASE))'.",
+        "Changed 'from cities_reversible_access import zero_reflection_circuit' to the relative import 'from .cities_reversible_access import zero_reflection_circuit'. The previously imported file is byte-identical to the vendored one (same SHA-256).",
+        "price(M,K,G,bits,P0) became price(M,K,G,bits,P0,lookup=100,g_quantum=10000); the hard-coded factors 100 (lookup calls) and 10000 (coherent predicate calls) in the cost expression were replaced by these parameters. Defaults reproduce the original cost exactly."
+      ]
+    }
+  ],
+  "reimplemented_not_vendored": [
+    {
+      "original_file": "evaluate_points.py",
+      "origin": "cities13_point_execution_20260912_v1/src",
+      "original_sha256": "66e1e12e4ff01c0a112e993bf6e3e5c4adf2e3d88c600d8e58993d04dad3ebf0",
+      "reason": "Imports a server configuration module at import time. routes_for(plan, n) is reimplemented with identical logic as qrq.routes.evaluate_routes and direct_count(points, bounds) as qrq.geometry.SpaceTimeBox.count; tests compare evaluate_routes with a verbatim copy of routes_for."
+    },
+    {
+      "original_file": "prepare.py",
+      "origin": "cities_context_perturbation_20260921_v1r1/src",
+      "original_sha256": "a361a148009a2b1f2b5d5b54f396d38f9babe11a2135f878c19e354c2e508729",
+      "reason": "The baseline part of make_queries() is reimplemented as qrq.workload.register_windows (same grid, identifiers, bounds and unsupported_index_span rule). Study-domain support classification needs restricted domain geometry and is not reimplemented."
+    },
+    {
+      "original_file": "worker.py",
+      "origin": "cities_context_perturbation_20260921_v1r1/src",
+      "original_sha256": "3ab6c7dd38466bdba29f0ecca2b7caf542d386642a000aa353400a7bf8a1ec98",
+      "reason": "The per-tree costing loop is reproduced by qrq.engine.evaluate_window (three trees, fan-out 4, routes_for then price under one price table)."
+    },
+    {
+      "original_file": "analyze.py",
+      "origin": "cities_context_perturbation_20260921_v1r1/src",
+      "original_sha256": "238d117786d410a98cfb16f262a635f1e4293b0a7f609a1c6504be5dccdbb8a5",
+      "reason": "The envelope selection of endpoint() is reimplemented as qrq.engine.select_envelope (same tie-breaking), the adjacent-scale pairing as qrq.workload.adjacent_pairs and direction() as qrq.workload.classify_pair."
+    }
+  ]
+}
