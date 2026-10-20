@@ -11,8 +11,10 @@ answer size ``k``, the five route resource rows and their stored costs.
 :func:`audit_day` re-prices every stored route from its resource vectors,
 checks the stored costs, and recomputes the per-window envelope with
 :func:`qrq.engine.select_envelope`. :func:`reproduce` aggregates all days
-into the published window and adjacent-pair counts. Every window keeps its
-per-tree inputs
+into the published window and adjacent-pair counts. With ``amplified=True``
+the envelopes also admit amplitude amplification on the selected quantum
+tree (:func:`qrq.engine.include_amplified`), which reproduces the published
+sensitivity analysis. Every window keeps its per-tree inputs
 (:class:`TreeEndpoint`) for exact re-pricing with :mod:`qrq.sweep`. Run it
 from the command line with ``python -m qrq.ledger --ledgers <root>``.
 
@@ -30,7 +32,8 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
 
-from .engine import select_envelope
+from .amplitude import amplified_cost_from_route
+from .engine import include_amplified, select_envelope
 from .index import TREE_KINDS
 from .prices import L1, PriceTable, decompose_quantum_cost, route_cost
 from .routes import QRQ_FW
@@ -126,8 +129,9 @@ class LedgerEndpoint:
     """Envelope of one non-empty window recomputed from ledger rows.
 
     ``M``, ``trials``, ``G``, ``prefix`` and ``trial_cost`` describe the
-    ``QRQ_FW`` route on ``quantum_tree``; ``trees`` holds the per-tree
-    inputs in ledger tree order.
+    ``QRQ_FW`` route on ``quantum_tree``. ``quantum_route``,
+    ``filter_cost`` and ``amplified_cost`` follow :class:`qrq.engine.Envelope`;
+    ``trees`` holds the per-tree inputs in ledger tree order.
     """
 
     source_id: str
@@ -152,6 +156,9 @@ class LedgerEndpoint:
     G: int
     prefix: float
     trial_cost: float
+    quantum_route: str = QRQ_FW
+    filter_cost: float | None = None
+    amplified_cost: float | None = None
     trees: tuple[TreeEndpoint, ...] = field(default=(), repr=False)
 
     @property
@@ -178,13 +185,16 @@ def _relative_error(a: float, b: float) -> float:
     return abs(a - b) / max(abs(a), abs(b))
 
 
-def audit_day(day: LedgerDay, prices: PriceTable = L1, rel_tol: float = 1e-12) -> DayAudit:
+def audit_day(
+    day: LedgerDay, prices: PriceTable = L1, rel_tol: float = 1e-12, amplified: bool = False
+) -> DayAudit:
     """Re-price every route of one source-day and recompute its envelopes.
 
     Raises :class:`AssertionError` when a stored cost differs from the
     recomputed one beyond ``rel_tol``, when trees disagree on ``k`` or on the
     window status, or when the quantum cost does not decompose as
-    ``P + (M/K) H``.
+    ``P + (M/K) H``. With ``amplified=True`` each envelope also admits
+    amplitude amplification on its selected quantum tree.
     """
     audit = DayAudit(day)
     by_query: dict[str, list[tuple[str, dict[str, Any], dict[str, float]]]] = {}
@@ -225,6 +235,8 @@ def audit_day(day: LedgerDay, prices: PriceTable = L1, rel_tol: float = 1e-12) -
         parts = decompose_quantum_cost(q_route, prices)
         if not math.isclose(env.Q, parts.total, rel_tol=rel_tol):
             raise AssertionError(f"{query_id}: Q does not decompose as P + (M/K) H")
+        if amplified:
+            env = include_amplified(env, amplified_cost_from_route(q_route, first["k"], prices).cost)
         audit.endpoints.append(
             LedgerEndpoint(
                 source_id=day.source_id,
@@ -249,6 +261,9 @@ def audit_day(day: LedgerDay, prices: PriceTable = L1, rel_tol: float = 1e-12) -
                 G=q_route["preparation"]["gate_total"],
                 prefix=parts.prefix,
                 trial_cost=parts.trial_cost,
+                quantum_route=env.quantum_route,
+                filter_cost=env.filter_cost,
+                amplified_cost=env.amplified_cost,
                 trees=tuple(_tree_endpoint(tree, row, costs, prices) for tree, row, costs in entries),
             )
         )
@@ -273,7 +288,8 @@ class PairRecord:
 class Reproduction:
     """Aggregate of :func:`reproduce` over all source-days.
 
-    ``prices`` are the audit prices of every stored and recomputed cost.
+    ``prices`` are the audit prices of every stored and recomputed cost;
+    ``amplified`` tells whether the envelopes admit the ``QRQ_AA`` route.
     """
 
     days: int = 0
@@ -285,6 +301,7 @@ class Reproduction:
     windows: list[LedgerEndpoint] = field(default_factory=list)
     pairs: list[PairRecord] = field(default_factory=list)
     prices: PriceTable = L1
+    amplified: bool = False
 
     @property
     def window_count(self) -> int:
@@ -333,16 +350,18 @@ def reproduce(
     arm: str = "baseline",
     variant: str = "base",
     rel_tol: float = 1e-12,
+    amplified: bool = False,
 ) -> Reproduction:
     """Re-price all sealed ledgers and rebuild the envelope counts.
 
     Windows are the non-empty, fully supported envelopes of the selected
     ``arm`` and ``variant``; pairs are adjacent-scale pairs among them
-    within each source-day.
+    within each source-day. ``amplified=True`` gives the AA-inclusive
+    envelope of the published sensitivity analysis.
     """
-    result = Reproduction(prices=prices)
+    result = Reproduction(prices=prices, amplified=amplified)
     for day in find_ledger_days(root):
-        audit = audit_day(day, prices, rel_tol)
+        audit = audit_day(day, prices, rel_tol, amplified)
         result.days += 1
         result.ledgers += len(day.paths)
         result.rows += audit.rows
@@ -377,8 +396,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--ledgers", required=True, help="evidence root directory")
     parser.add_argument("--windows-csv", help="optional output CSV of recomputed windows")
+    parser.add_argument("--amplified", action="store_true",
+                        help="admit amplitude amplification on the selected quantum tree")
     args = parser.parse_args(argv)
-    result = reproduce(args.ledgers)
+    result = reproduce(args.ledgers, amplified=args.amplified)
     if args.windows_csv:
         import csv
 

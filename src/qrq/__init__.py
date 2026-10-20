@@ -20,7 +20,7 @@ Typical use::
     result = qrq.evaluate_window(indexes, qrq.SpaceTimeBox(0, 5000, 0, 5000, 0, 43200),
                                  qrq.L1, verify=True)
 """
-from .engine import Envelope, WindowResult, evaluate_window, select_envelope
+from .engine import Envelope, WindowResult, evaluate_window, include_amplified, select_envelope
 from .geometry import Predicate, SpaceTimeBox
 from .index import TREE_KINDS, AccessPlan, ClassicalAccess, SpatioTemporalIndex
 from .prices import L1, UNIT, PriceTable, decompose_quantum_cost, route_cost, route_costs
@@ -54,6 +54,7 @@ __all__ = [
     "decompose_quantum_cost",
     "evaluate_routes",
     "evaluate_window",
+    "include_amplified",
     "load_points",
     "make_points",
     "register_windows",

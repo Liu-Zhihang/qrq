@@ -6,8 +6,12 @@ test time through environment variables:
 ``QRQ_SEALED_LEDGERS``  evidence root with ``<host>/outputs/<source>/<date>/<tree>.jsonl.gz``
 ``QRQ_SEALED_TABLES``   directory with ``endpoints.csv.gz`` and ``scale_pairs.csv.gz``
 ``QRQ_SEALED_INPUTS``   directory with ``geometry_qa.json`` and ``queries/<source>.json``
+``QRQ_SEALED_AA``       directory with ``aa_endpoints.csv.gz`` and ``aa_by_source.csv``
 """
 from __future__ import annotations
+
+import csv
+import gzip
 
 import numpy as np
 import pytest
@@ -52,3 +56,19 @@ def sealed_reproduction():
     from qrq.ledger import reproduce
 
     return reproduce(env_dir("QRQ_SEALED_LEDGERS"))
+
+
+@pytest.fixture(scope="session")
+def sealed_amplified():
+    """AA-inclusive re-enveloping of the sealed ledgers, computed once per session."""
+    from qrq.ledger import reproduce
+
+    return reproduce(env_dir("QRQ_SEALED_LEDGERS"), amplified=True)
+
+
+@pytest.fixture(scope="session")
+def sealed_cities() -> dict[str, str]:
+    """Source-to-city labels from the sealed endpoint table (ledgers carry none)."""
+    path = env_dir("QRQ_SEALED_TABLES") / "endpoints.csv.gz"
+    with gzip.open(path, "rt", newline="", encoding="utf-8") as handle:
+        return {row["source_id"]: row["city"] for row in csv.DictReader(handle)}

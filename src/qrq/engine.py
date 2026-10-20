@@ -10,13 +10,20 @@ For one window the engine evaluates every route on every index and forms
 Tie-breaking reproduces the sealed analysis: the quantum tree is the first
 minimal tree in iteration order, and the classical choice minimises the
 tuple ``(cost, tree, route)``. Empty windows (``k == 0``) have no envelope.
+
+Optionally the envelope also admits unknown-K amplitude amplification
+(``QRQ_AA``, :mod:`qrq.amplitude`) as published in the sensitivity
+analysis: the amplified route is priced on the quantum tree already selected
+by the first-witness costs and ``Q = min(Q_FW, Q_AA)``
+(:func:`include_amplified`).
 """
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Iterable, Mapping
 
+from .amplitude import QRQ_AA, amplified_cost_from_route
 from .geometry import SpaceTimeBox
 from .index import SpatioTemporalIndex
 from .prices import L1, PriceTable, route_costs
@@ -25,13 +32,22 @@ from .routes import QRQ_FW, evaluate_routes
 
 @dataclass(frozen=True)
 class Envelope:
-    """Envelope of one non-empty window."""
+    """Envelope of one non-empty window.
+
+    ``quantum_route`` is the quantum route that attains ``Q``.
+    ``filter_cost`` is the first-witness (``QRQ_FW``) cost on
+    ``quantum_tree``; ``amplified_cost`` is the amplitude-amplification cost
+    on the same tree, or ``None`` when that route was not evaluated.
+    """
 
     Q: float
     C: float
     quantum_tree: str
     classical_tree: str
     classical_route: str
+    quantum_route: str = QRQ_FW
+    filter_cost: float | None = None
+    amplified_cost: float | None = None
 
     @property
     def D(self) -> float:
@@ -67,16 +83,37 @@ def select_envelope(costs_by_tree: Iterable[tuple[str, Mapping[str, float]]]) ->
         quantum_tree=q_tree,
         classical_tree=c_tree,
         classical_route=c_route,
+        filter_cost=q_costs[QRQ_FW],
     )
+
+
+def include_amplified(env: Envelope, amplified_cost: float) -> Envelope:
+    """Admit the amplitude-amplification route into a first-witness envelope.
+
+    ``amplified_cost`` must be the ``QRQ_AA`` cost on ``env.quantum_tree``.
+    This is the published sensitivity rule: the quantum tree is not
+    re-optimised, ``Q = min(Q_FW, Q_AA)`` on that tree, and ``quantum_route``
+    becomes ``QRQ_AA`` only when the amplified cost is strictly lower. The
+    classical side is unchanged.
+    """
+    if env.amplified_cost is not None:
+        raise ValueError("the envelope already includes the amplified route")
+    filter_cost = env.Q if env.filter_cost is None else env.filter_cost
+    if amplified_cost < filter_cost:
+        return replace(env, Q=amplified_cost, quantum_route=QRQ_AA,
+                       filter_cost=filter_cost, amplified_cost=amplified_cost)
+    return replace(env, filter_cost=filter_cost, amplified_cost=amplified_cost)
 
 
 @dataclass(frozen=True)
 class WindowResult:
     """Outcome of :func:`evaluate_window`.
 
-    ``Q``, ``C``, ``D`` and the selected tree/route are ``None`` when the
+    ``Q``, ``C``, ``D`` and the selected trees/routes are ``None`` when the
     window is empty. ``costs`` maps tree kind to ``{route: cost}`` and
-    ``routes`` maps tree kind to the full resource rows.
+    ``routes`` maps tree kind to the full resource rows. ``filter_cost`` and
+    ``amplified_cost`` are the ``QRQ_FW`` and ``QRQ_AA`` costs on
+    ``quantum_tree`` (the latter only with ``amplified=True``).
     """
 
     k: int
@@ -89,6 +126,9 @@ class WindowResult:
     costs: dict[str, dict[str, float]]
     routes: dict[str, list[dict[str, Any]]] = field(repr=False)
     verified: bool = False
+    quantum_route: str | None = None
+    filter_cost: float | None = None
+    amplified_cost: float | None = None
 
     @property
     def quantum_lower(self) -> bool:
@@ -101,11 +141,15 @@ def evaluate_window(
     box: SpaceTimeBox,
     prices: PriceTable = L1,
     verify: bool = False,
+    amplified: bool = False,
 ) -> WindowResult:
     """Evaluate one window on every index and return its envelope.
 
     All indexes must cover the same records. With ``verify=True`` the
     answer size is checked against a brute-force count of the records.
+    With ``amplified=True`` the quantum side also admits amplitude
+    amplification on the selected quantum tree (:func:`include_amplified`);
+    this requires ``prices.lam == prices.repeats == 1``.
     """
     if not indexes:
         raise ValueError("at least one index is required")
@@ -133,6 +177,9 @@ def evaluate_window(
     if not k:
         return WindowResult(k, None, None, None, None, None, None, costs, rows, verified)
     env = select_envelope(costs.items())
+    if amplified:
+        q_row = next(row for row in rows[env.quantum_tree] if row["route"] == QRQ_FW)
+        env = include_amplified(env, amplified_cost_from_route(q_row, k, prices).cost)
     return WindowResult(
         k=k,
         Q=env.Q,
@@ -144,4 +191,7 @@ def evaluate_window(
         costs=costs,
         routes=rows,
         verified=verified,
+        quantum_route=env.quantum_route,
+        filter_cost=env.filter_cost,
+        amplified_cost=env.amplified_cost,
     )

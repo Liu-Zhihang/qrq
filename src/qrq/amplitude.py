@@ -26,6 +26,9 @@ from typing import Any, Mapping
 from ._vendor import aa_challenger as _aa
 from .prices import L1, PriceTable
 
+QRQ_AA = "QRQ_AA"
+"""Route label of amplitude amplification over the first-witness frontier."""
+
 
 def policy_windows(M: int) -> list[int]:
     """Iteration windows of the unknown-K schedule for a domain of size ``M``."""

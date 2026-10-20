@@ -20,6 +20,7 @@ def test_synthetic_reproduction(synthetic_ledgers):
     assert r.prices == qrq.L1 and r.window_count > 0 and r.pairs
     for w in r.windows:
         assert math.isclose(w.Q, w.prefix + w.trials * w.trial_cost, rel_tol=1e-12)
+        assert w.filter_cost == w.Q
 
 
 def test_tree_endpoints_match_ledger_rows(synthetic_ledgers):
@@ -50,11 +51,11 @@ def test_tree_endpoints_match_ledger_rows(synthetic_ledgers):
 
 def test_command_line(synthetic_ledgers, tmp_path, capsys):
     out = tmp_path / "windows.csv"
-    assert main(["--ledgers", str(synthetic_ledgers), "--windows-csv", str(out)]) == 0
+    assert main(["--ledgers", str(synthetic_ledgers), "--windows-csv", str(out), "--amplified"]) == 0
     summary = json.loads(capsys.readouterr().out)
-    r = reproduce(synthetic_ledgers)
-    assert summary["windows"] == r.window_count and summary["quantum_lower"] == r.quantum_lower_count
+    joint = reproduce(synthetic_ledgers, amplified=True)
+    assert summary["windows"] == joint.window_count and summary["quantum_lower"] == joint.quantum_lower_count
     with open(out, newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
-    assert len(rows) == r.window_count
-    assert "trees" not in rows[0] and {"query_id", "Q", "C", "D"} <= set(rows[0])
+    assert len(rows) == joint.window_count
+    assert "trees" not in rows[0] and {"quantum_route", "filter_cost", "amplified_cost"} <= set(rows[0])
