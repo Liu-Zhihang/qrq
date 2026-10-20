@@ -1,0 +1,38 @@
+[build-system]
+requires = ["scikit-build-core>=0.11", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "qrq"
+version = "0.1.0"
+description = "Quantum range queries over space-time point records: matched classical and quantum access-route resource accounting."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "The qrq authors" }]
+keywords = ["range query", "spatio-temporal index", "quantum algorithms", "resource estimation", "mobility data"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = ["numpy>=1.23"]
+
+[project.optional-dependencies]
+test = ["pytest>=7", "pandas>=1.5"]
+
+[tool.scikit-build]
+minimum-version = "0.11"
+build-dir = "build/{wheel_tag}"
+cmake.build-type = "Release"
+wheel.packages = ["src/qrq"]
+sdist.include = ["cpp/*", "provenance/*", "docs/*", "tests/*"]
+sdist.exclude = ["build", ".venv"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
