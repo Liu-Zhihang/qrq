@@ -107,6 +107,23 @@ cohort = sweep.cohort_from_reproduction(reproduce("/path/to/evidence"))
 tables = sweep.sweep(cohort, sweep.price_grid())   # 45 points, L1 first
 ```
 
+## Ecosystem and specifications
+
+qrq is meant to be the shared core for quantum range queries over
+spatio-temporal and semantic urban records. Version 0.2.0 is the frozen
+reference for the accompanying manuscript; extensions are specified before
+they are implemented:
+
+* `docs/specs/records.md`: point records (implemented) and place (POI)
+  records with per-row licences, sidecars and dataset manifests;
+* `docs/specs/semantic.md`: interval, embedding-similarity and circuit
+  predicates, and how they enter `Q = P + (M/K) H` and the ledgers;
+* `docs/specs/plugins.md`: entry-point groups for datasets, encoders,
+  indexes, routes and price tables, with conformance rules.
+
+The release plan is in `docs/roadmap.md`; contribution rules are in
+`CONTRIBUTING.md` and changes in `CHANGELOG.md`.
+
 ## Reproducibility
 
 * The C++ backend and the core Python resource code are vendored from the
@@ -134,6 +151,7 @@ tables = sweep.sweep(cohort, sweep.price_grid())   # 45 points, L1 first
     src/qrq/semantic/   experimental semantic-predicate interfaces
     provenance/         vendored-source manifest
     docs/               interfaces, reproduction, data access, roadmap
+    docs/specs/         draft specifications: records, semantic predicates, plugins
     tests/              synthetic tests and the optional sealed regressions
 
 ## License

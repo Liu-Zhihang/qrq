@@ -1,30 +1,43 @@
 # Roadmap
 
-## Semantic range queries (future work)
+qrq is the shared core for quantum range queries over spatio-temporal and
+semantic urban records: trajectories now, places (POIs) and their text
+next. Specifications for the extensions are in `docs/specs/`; they are drafts
+and produce no published result until implemented and tested.
 
-The published results cover closed space-time boxes only. A natural
-extension asks for records in a box that also satisfy a semantic condition
-(land use, activity type, transport mode, ...). `qrq.semantic` fixes the
-interfaces for that work but implements nothing used in any result:
+## Releases
 
-* `SemanticEncoder` maps labels onto one ordered axis so that a label set
-  becomes an interval;
-* `CategoricalIntervalEncoder` is a toy encoder by list position;
-* `SemanticBox` adds one closed semantic interval to a `SpaceTimeBox`.
+**0.2.0 (this release).** Frozen reference for the accompanying manuscript.
+Reproduces the access cohort, the 45-point price sweep, the
+amplitude-amplification sensitivity and the reconstruction-task comparison
+from sealed evidence. Adds the draft specifications for records, semantic
+predicates and plugins. No change to any published number.
 
-Open items, roughly in order:
+**0.3.0, places and plugins.**
 
-1. **Encoders.** Orders under which the label sets of real tasks are
-   contiguous (hierarchical taxonomies, learned one-dimensional embeddings);
-   handling of label sets that need several intervals.
-2. **4-D index.** A static index over `(x, y, t, s)` with the same matched
-   access plan as the 3-D backend (first-witness frontier, block and
-   enumeration traversals, depth-first rank layout).
-3. **Cost model.** A coherent semantic predicate price next to `g_quantum`,
-   and the corresponding classical test price, so that `Q = P + (M/K) H`
-   extends with an explicit semantic term.
-4. **Workload.** A registered semantic window grid and adjacent pairs along
-   the semantic axis, analogous to the space and time axes.
+* Place records, sidecars and dataset manifests (`specs/records.md`).
+* Loaders for Overture Places, Foursquare OS Places and OpenStreetMap,
+  with per-row licence handling.
+* Plugin discovery and the conformance suite (`specs/plugins.md`).
+* Axis encoders for category taxonomies, multi-interval selections and
+  validity intervals from opening-hours expressions.
+* Command-line entry points for the price sweep and the task comparison.
+
+**0.4.0, text semantics.**
+
+* Embedding encoders for pinned transformer text models, with sidecar
+  storage (`specs/semantic.md`, section 2.2).
+* Mode II tested predicates: semantic test counts in the ledger and the two
+  semantic prices in `PriceTable`.
+* Registered semantic workloads with threshold and taxonomy ladders.
+
+**0.5.0, circuit predicates and a 4-D index.**
+
+* An optional adapter that turns compositional sentence circuits from a
+  quantum natural-language-processing toolkit into circuit predicates with
+  counted resources.
+* Mode I: a static `(x, y, t, s)` index with the matched access plan of the
+  3-D backend.
 
 ## Other directions
 
@@ -36,4 +49,3 @@ Open items, roughly in order:
 * A three-tree amplitude-amplification envelope. The `amplified` option
   prices `QRQ_AA` on the first-witness quantum tree only, as published;
   choosing the quantum tree by the joint cost is not implemented.
-* A command-line entry point for the price sweep and the task comparison.

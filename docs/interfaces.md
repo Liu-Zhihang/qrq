@@ -247,5 +247,5 @@ Not used for any published result.
   encoded axis; `spacetime()` returns the 3-D part for the existing indexes
   and `contains(points, semantic)` filters the semantic interval afterwards.
 
-A native 4-D index and a matched cost model for semantic predicates are
-future work (`docs/roadmap.md`).
+Place records, embedding and circuit predicates, a semantic cost term and
+plugins are specified in `docs/specs/` and scheduled in `docs/roadmap.md`.
