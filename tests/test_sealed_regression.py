@@ -21,6 +21,7 @@ from evidence import env_dir
 PUBLISHED = dict(days=107, ledgers=321, windows=13370, quantum_lower=742, pairs=17592, forward=1060, reverse=11)
 
 # Published per-source table: non-empty windows, Q < C windows, forward and reverse pairs.
+# Keys are the source identifiers of the sealed archive.
 PUBLISHED_BY_SOURCE = {
     "tdrive": (3305, 208, 330, 0),
     "geolife": (265, 4, 8, 0),

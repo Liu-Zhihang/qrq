@@ -1,7 +1,8 @@
 """Reconstruction-task comparison against the sealed tables (skipped by default).
 
-Needs ``QRQ_SEALED_TASKS``: the sealed archive root holding the four input
-runs and the comparison run listed in ``tests/task_inputs.py``.
+Needs ``QRQ_SEALED_TASKS``: the sealed archive root holding the comparison
+run and the input runs listed in its ``inputs/freeze.json``
+(``tests/task_inputs.py``).
 """
 from __future__ import annotations
 
