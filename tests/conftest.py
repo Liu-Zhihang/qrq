@@ -6,6 +6,7 @@ test time through environment variables:
 ``QRQ_SEALED_LEDGERS``  evidence root with ``<host>/outputs/<source>/<date>/<tree>.jsonl.gz``
 ``QRQ_SEALED_TABLES``   directory with ``endpoints.csv.gz`` and ``scale_pairs.csv.gz``
 ``QRQ_SEALED_INPUTS``   directory with ``geometry_qa.json`` and ``queries/<source>.json``
+``QRQ_SEALED_SWEEP``    directory with ``price_grid.csv``, ``price_by_source.csv``, ``price_pairs.csv``
 ``QRQ_SEALED_AA``       directory with ``aa_endpoints.csv.gz`` and ``aa_by_source.csv``
 """
 from __future__ import annotations
