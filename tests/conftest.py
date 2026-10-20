@@ -1,29 +1,16 @@
-"""Shared fixtures: seeded synthetic data and sealed-evidence paths.
+"""Shared fixtures: seeded synthetic point clouds, indexes and ledgers.
 
-Sealed evidence is never part of the repository. Its location is passed at
-test time through environment variables:
-
-``QRQ_SEALED_LEDGERS``  evidence root with ``<host>/outputs/<source>/<date>/<tree>.jsonl.gz``
-``QRQ_SEALED_TABLES``   directory with ``endpoints.csv.gz`` and ``scale_pairs.csv.gz``
-``QRQ_SEALED_INPUTS``   directory with ``geometry_qa.json`` and ``queries/<source>.json``
-``QRQ_SEALED_SWEEP``    directory with ``price_grid.csv``, ``price_by_source.csv``, ``price_pairs.csv``
-``QRQ_SEALED_AA``       directory with ``aa_endpoints.csv.gz`` and ``aa_by_source.csv``
-``QRQ_SEALED_TASKS``    archive root holding the reconstruction-task runs (``tests/task_inputs.py``)
-
-The evidence belongs to the reference study described in
-``docs/reference_study/reproduction.md``.
+The test suite needs no external data. Only the optional backend cross-check
+in ``test_reference_backend.py`` reads an environment variable,
+``QRQ_REFERENCE_EXTENSION`` (see README.md, section Testing).
 """
 from __future__ import annotations
-
-import csv
-import gzip
 
 import numpy as np
 import pytest
 
 import qrq
 
-from evidence import env_dir
 from synthetic import synthetic_cloud, write_synthetic_ledgers
 
 
@@ -51,38 +38,5 @@ def indexed_cloud() -> tuple[np.ndarray, dict[str, qrq.SpatioTemporalIndex]]:
 
 @pytest.fixture(scope="session")
 def synthetic_ledgers(tmp_path_factory):
-    """Synthetic per-tree ledgers in the sealed directory layout."""
+    """Synthetic per-tree ledgers of several source-days."""
     return write_synthetic_ledgers(tmp_path_factory.mktemp("ledgers"))
-
-
-@pytest.fixture(scope="session")
-def sealed_reproduction():
-    """Full re-pricing of the sealed ledgers, computed once per session."""
-    from qrq.ledger import reproduce
-
-    return reproduce(env_dir("QRQ_SEALED_LEDGERS"))
-
-
-@pytest.fixture(scope="session")
-def sealed_amplified():
-    """AA-inclusive re-enveloping of the sealed ledgers, computed once per session."""
-    from qrq.ledger import reproduce
-
-    return reproduce(env_dir("QRQ_SEALED_LEDGERS"), amplified=True)
-
-
-SEALED_GROUP_COLUMN = "city"  # external name of the group-label column in the sealed tables
-
-
-@pytest.fixture(scope="session")
-def sealed_group_column() -> str:
-    """Name of the group-label column in the sealed reference tables."""
-    return SEALED_GROUP_COLUMN
-
-
-@pytest.fixture(scope="session")
-def sealed_groups() -> dict[str, str]:
-    """Source-to-group labels from the sealed endpoint table (ledgers carry none)."""
-    path = env_dir("QRQ_SEALED_TABLES") / "endpoints.csv.gz"
-    with gzip.open(path, "rt", newline="", encoding="utf-8") as handle:
-        return {row["source_id"]: row[SEALED_GROUP_COLUMN] for row in csv.DictReader(handle)}
