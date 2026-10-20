@@ -4,7 +4,7 @@ K is used only by the offline expectation evaluator, never policy_windows().
 This is not a hardware runtime or a complete multi-index quantum envelope.
 """
 import functools,math
-from .cities_reversible_access import zero_reflection_circuit
+from .reversible_access import zero_reflection_circuit
 
 def policy_windows(M):
     if not isinstance(M,int) or M<1:raise ValueError('positive candidate size required')

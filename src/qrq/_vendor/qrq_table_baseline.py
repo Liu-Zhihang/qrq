@@ -2,7 +2,7 @@
 import math
 import numpy as np
 from .qrq_matched import compile_intervals,simulate_preparation
-from .cities_reversible_access import rom_circuit,execute_lanes,unpack_lanes,apply_state
+from .reversible_access import rom_circuit,execute_lanes,unpack_lanes,apply_state
 
 
 def check_injective_map(labels,n):

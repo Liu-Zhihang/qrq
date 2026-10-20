@@ -1,7 +1,7 @@
-"""Paid BLOCK/ENUM -> TABLE resource adapter; not a city-scale executor.
+"""Paid BLOCK/ENUM -> TABLE resource adapter; not a large-scale executor.
 
 This reuses the legacy table accounting but requires k to come from a charged
-exact classical solver row. No query result, city record or new oracle is built.
+exact classical solver row. No query result, data record or new oracle is built.
 """
 import math
 

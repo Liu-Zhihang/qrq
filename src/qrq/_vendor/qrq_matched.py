@@ -1,13 +1,13 @@
 """Versioned first-witness valid-rank reference and matched-output resources.
 
 No hardware timings; static coherent record access and clean geometry are
-explicitly priced oracles in city-scale comparisons.
+explicitly priced oracles in large-scale comparisons.
 """
 from collections import Counter
 from functools import lru_cache
 import math
 import numpy as np
-from .cities_reversible_access import mcx, gate_counts, apply_state
+from .reversible_access import mcx, gate_counts, apply_state
 
 
 def merge_ranges(ranges):
