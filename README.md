@@ -32,6 +32,13 @@ Point records are indexed three ways. Quantum filtering and the classical
 routes are priced on the same index, and the envelope keeps the cheaper
 quantum cost and the cheaper classical cost.
 
+![Method overview](docs/images/method_overview.png)
+
+The trajectory construction reads a space-time window through one tree. The
+classical walk pays one I/O per visited node. The quantum route scans the
+physical slots of a node, including empty padding slots, and post-selects the
+matching records. Both routes return the same result set.
+
 ## Install
 
 Requirements: Python >= 3.10, a C++17 compiler, CMake >= 3.15.
