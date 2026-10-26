@@ -26,6 +26,12 @@ qrq is a resource-accounting model with explicitly priced oracles. It does not
 simulate large-scale quantum circuits, does not measure hardware run time and
 does not claim a hardware speed-up.
 
+![Accounting flow](docs/images/accounting.png)
+
+Point records are indexed three ways. Quantum filtering and the classical
+routes are priced on the same index, and the envelope keeps the cheaper
+quantum cost and the cheaper classical cost.
+
 ## Install
 
 Requirements: Python >= 3.10, a C++17 compiler, CMake >= 3.15.
