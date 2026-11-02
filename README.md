@@ -1,4 +1,4 @@
-# qrq: quantum range queries over space-time point records
+# qrq: quantum range queries over space-time data
 
 qrq is a small research package that asks a precise question: for a closed
 space-time box query over a static index of point records, when does a
